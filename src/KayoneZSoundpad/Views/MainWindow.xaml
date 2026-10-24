@@ -1,0 +1,425 @@
+<Window x:Class="KayoneZSoundpad.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KayoneZ Soundpad" Height="860" Width="1360" MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Bg}"
+        FontFamily="Segoe UI Variable Display, Segoe UI, Arial"
+        FontSize="13.5"
+        AllowDrop="True">
+
+    <Window.Resources>
+        <!-- Kategori liste bağlam menüsü -->
+        <ContextMenu x:Key="CategoryContextMenu">
+            <MenuItem Header="Yeniden adlandır" Click="RenameCategory_Click"/>
+            <MenuItem Header="Sil" Click="DeleteCategory_Click"/>
+        </ContextMenu>
+
+        <!-- ============ SES KARTI ============ -->
+        <DataTemplate x:Key="SoundCardTemplate">
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard RepeatBehavior="Forever">
+                                <DoubleAnimation Storyboard.TargetName="bar1" Storyboard.TargetProperty="Height"
+                                                 From="3" To="14" Duration="0:0:0.25" AutoReverse="True"/>
+                                <DoubleAnimation Storyboard.TargetName="bar2" Storyboard.TargetProperty="Height"
+                                                 From="12" To="4" Duration="0:0:0.32" AutoReverse="True"/>
+                                <DoubleAnimation Storyboard.TargetName="bar3" Storyboard.TargetProperty="Height"
+                                                 From="5" To="13" Duration="0:0:0.20" AutoReverse="True"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+
+            <Border x:Name="card" Width="240" Height="168" Margin="0,0,14,14"
+                    BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
+                    CornerRadius="12" Cursor="Hand">
+                <Border.InputBindings>
+                    <MouseBinding Gesture="LeftClick"
+                                  Command="{Binding DataContext.PlayStopCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                </Border.InputBindings>
+                <Border.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Çal / Durdur"
+                                  Command="{Binding DataContext.PlayStopCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                        <MenuItem Header="Sesi kıs/aç"
+                                  Command="{Binding DataContext.ToggleMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                        <MenuItem Header="Düzenle..."
+                                  Command="{Binding DataContext.EditSoundCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                        <MenuItem Header="Favori"
+                                  Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                        <Separator/>
+                        <MenuItem Header="Kütüphaneden kaldır"
+                                  Command="{Binding DataContext.DeleteSoundCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}"/>
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{DynamicResource Brush.Card}"/>
+                        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                        <Setter Property="RenderTransform">
+                            <Setter.Value>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource Brush.CardHover}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource Brush.AccentDim}"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.015" ScaleY="1.015"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsMouseCaptured" Value="True">
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.985" ScaleY="0.985"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Danger}"/>
+                                <Setter Property="Opacity" Value="0.75"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- renk şeridi -->
+                    <Border Grid.Column="0" Background="{Binding AccentBrush}" CornerRadius="12,0,0,12"/>
+
+                    <Grid Grid.Column="1" Margin="14,12,14,10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- üst satır: ikon + favori -->
+                        <Grid Grid.Row="0">
+                            <TextBlock Text="{Binding Icon}" FontSize="20" VerticalAlignment="Center"
+                                       HorizontalAlignment="Left"/>
+                            <TextBlock Text="★" FontSize="14" Foreground="{DynamicResource Brush.Warning}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Visibility="{Binding Favorite, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
+
+                        <!-- ad -->
+                        <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,6,0,4"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"
+                                   ToolTip="{Binding Name}"/>
+
+                        <!-- alt satır: süre / kısayol / çalma göstergesi -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding DurationText}" Style="{StaticResource Muted}"
+                                           FontSize="11"/>
+                                <Border Background="{DynamicResource Brush.AccentDim}" CornerRadius="4"
+                                        Padding="6,2" Margin="8,0,0,0"
+                                        Visibility="{Binding HotkeyText, Converter={StaticResource NotEmptyToVis}}">
+                                    <TextBlock Text="{Binding HotkeyText}" FontSize="10.5"
+                                               Foreground="{DynamicResource Brush.AccentHover}" FontWeight="SemiBold"/>
+                                </Border>
+                            </StackPanel>
+                            <!-- çalma animasyonu -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                        Visibility="{Binding IsPlaying, Converter={StaticResource BoolToVis}}">
+                                <Rectangle x:Name="bar1" Width="3" Height="6" RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource Brush.Accent}" Margin="1,0"/>
+                                <Rectangle x:Name="bar2" Width="3" Height="10" RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource Brush.Accent}" Margin="1,0"/>
+                                <Rectangle x:Name="bar3" Width="3" Height="6" RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource Brush.Accent}" Margin="1,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- ses kontrolü -->
+                        <Grid Grid.Row="3" Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="🔊" FontSize="11" VerticalAlignment="Center"
+                                       Margin="0,0,6,0" Foreground="{DynamicResource Brush.TextMuted}"/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="1.5" Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1"/>
+                            <Button Grid.Column="2" Command="{Binding DataContext.ToggleMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" Padding="6,2" Margin="8,0,0,0"
+                                    Content="{Binding IsMuted, Converter={StaticResource MuteIconConverter}}"
+                                    FontSize="11" Foreground="{DynamicResource Brush.TextPrimary}"
+                                    Background="Transparent" BorderBrush="{DynamicResource Brush.InputBorder}"
+                                    ToolTip="{Binding IsMuted, Converter={StaticResource MuteTipConverter}}"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel LastChildFill="True">
+        <!-- ================= ÜST BAR ================= -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource Brush.Sidebar}"
+                BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,0,1" Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- logo -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="36" Height="36" CornerRadius="10" Background="{DynamicResource Brush.Accent}">
+                        <TextBlock Text="♪" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Brush.OnAccent}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="KayoneZ" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource Brush.TextPrimary}"/>
+                        <TextBlock Text="SOUNDPAD" FontSize="8" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Brush.Accent}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- arama -->
+                <Grid Grid.Column="1" MaxWidth="420" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=150}"
+                             VerticalContentAlignment="Center" Padding="36,8,12,8"/>
+                    <TextBlock Text="🔍" Margin="12,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                               Foreground="{DynamicResource Brush.TextMuted}"/>
+                    <TextBlock Text="Ses ara..." Margin="36,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                               Foreground="{DynamicResource Brush.TextMuted}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SearchText}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+
+                <!-- üst aksiyonlar -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Command="{Binding AddFilesCommand}" Style="{StaticResource AccentButton}" Padding="16,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="＋" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="Ses Ekle"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding AddFolderCommand}" Margin="8,0,0,0" ToolTip="Klasördeki tüm ses dosyalarını ekle" Padding="12,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📂" Margin="0,0,6,0"/>
+                            <TextBlock Text="Klasör"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ImportBtn" Click="ImportLibrary_Click" Margin="8,0,0,0" ToolTip="Kütüphaneyi geri yükle (.zip)" Padding="12,8">⬆ İçe Al</Button>
+                    <Button x:Name="ExportBtn" Click="ExportLibrary_Click" Margin="8,0,0,0" ToolTip="Kütüphaneyi yedekle (.zip)" Padding="12,8">⬇ Dışa Aktar</Button>
+                    <Button x:Name="SettingsBtn" Click="OpenSettings_Click" Margin="8,0,0,0" ToolTip="Ayarlar" Padding="12,8">⚙ Ayarlar</Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ================= ALT MIKSER BAR ================= -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Sidebar}"
+                BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0" Padding="24,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2.8*"/>
+                    <ColumnDefinition Width="2.2*"/>
+                    <ColumnDefinition Width="2.6*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- mikrofon -->
+                <StackPanel Margin="0,0,20,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="MİKROFON" Style="{StaticResource SectionLabel}"/>
+                        <CheckBox x:Name="MicToggle" Content="aktif" Margin="10,0,0,0" FontSize="11.5"
+                                  Checked="MicToggle_Changed" Unchecked="MicToggle_Changed"/>
+                    </StackPanel>
+                    <ComboBox x:Name="MicDeviceCombo" ItemsSource="{Binding CaptureDevices}"
+                              MinWidth="240" SelectionChanged="MicDevice_SelectionChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="🔊" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource Brush.TextMuted}"/>
+                        <Slider x:Name="MicVolumeSlider" Width="160" Minimum="0" Maximum="1.5"
+                                ValueChanged="MicVolume_Changed" Thumb.DragCompleted="MixerDragCompleted"
+                                VerticalAlignment="Center"/>
+                        <TextBlock x:Name="MicVolumeLabel" Style="{StaticResource Muted}" Margin="8,0,0,0" Text="100%"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- efekt sesi -->
+                <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                    <TextBlock Text="EFEKT SESİ" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,0,0">
+                        <Slider x:Name="FxVolumeSlider" Width="160" Minimum="0" Maximum="1.5"
+                                ValueChanged="FxVolume_Changed" Thumb.DragCompleted="MixerDragCompleted"
+                                VerticalAlignment="Center"/>
+                        <TextBlock x:Name="FxVolumeLabel" Style="{StaticResource Muted}" Margin="8,0,0,0" Text="100%"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="EFKT" Style="{StaticResource Muted}" Width="38"/>
+                        <ProgressBar x:Name="FxMeter" Width="140" Height="4" Minimum="0" Maximum="1"
+                                     Foreground="{DynamicResource Brush.Accent}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="ÇIKIŞ" Style="{StaticResource Muted}" Width="38"/>
+                        <ProgressBar x:Name="OutMeter" Width="140" Height="4" Minimum="0" Maximum="1"
+                                     Foreground="{DynamicResource Brush.Success}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- çıkış (oyun/discord) -->
+                <StackPanel Grid.Column="2" Margin="0,0,20,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="ÇIKIŞ (OYUN / DISCORD)" Style="{StaticResource SectionLabel}"/>
+                        <CheckBox x:Name="MonitorToggle" Content="lokal dinle" Margin="10,0,0,0" FontSize="11.5"
+                                  Checked="MonitorToggle_Changed" Unchecked="MonitorToggle_Changed"/>
+                    </StackPanel>
+                    <ComboBox x:Name="OutputDeviceCombo" ItemsSource="{Binding RenderDevices}"
+                              MinWidth="240" SelectionChanged="OutputDevice_SelectionChanged"/>
+                </StackPanel>
+
+                <!-- stop all -->
+                <Button Grid.Column="3" x:Name="StopAllBtn" Command="{Binding StopAllCommand}"
+                        Style="{StaticResource DangerButton}" VerticalAlignment="Center"
+                        Background="Transparent" BorderBrush="{DynamicResource Brush.Danger}" Padding="16,10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⏹" Margin="0,0,7,0"/>
+                        <TextBlock Text="Durdur"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ================= SOL KENAR ÇUBUĞU ================= -->
+        <Border DockPanel.Dock="Left" Width="248" Background="{DynamicResource Brush.Sidebar}"
+                BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="KATEGORİLER" Style="{StaticResource SectionLabel}"
+                           Margin="20,20,20,10"/>
+
+                <Button DockPanel.Dock="Top" Command="{Binding AddCategoryCommand}" Margin="16,0,16,12"
+                        Padding="10,7" FontSize="12.5" HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="＋" Margin="0,0,6,0"/>
+                        <TextBlock Text="Kategori ekle"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- VB-CABLE durumu -->
+                <Button DockPanel.Dock="Bottom" x:Name="CableStatusBtn" Click="OpenCableGuide_Click"
+                        Margin="16,0,16,16" Padding="12,10" HorizontalContentAlignment="Left"
+                        Background="{DynamicResource Brush.Elevated}" BorderBrush="{DynamicResource Brush.Border}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="CableStatusIcon" Text="●" Margin="0,0,8,0" FontSize="10"
+                                   Foreground="{DynamicResource Brush.Success}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CableStatusText}" FontSize="11.5" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"/>
+                    </StackPanel>
+                </Button>
+
+                <ListBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                         Margin="12,0,12,10" x:Name="CategoryList">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Icon}" FontSize="14" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center"/>
+                                <Border Grid.Column="2" Background="{DynamicResource Brush.AccentDim}" CornerRadius="8"
+                                        Padding="6,1" Margin="6,0,0,0" MinWidth="22"
+                                        Visibility="{Binding Count, Converter={StaticResource NotEmptyToVis}}">
+                                    <TextBlock Text="{Binding Count}" FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Brush.AccentHover}"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="ContextMenu" Value="{StaticResource CategoryContextMenu}"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ================= İÇERİK ================= -->
+        <Grid>
+            <!-- kartlar -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,18,14,18">
+                <ItemsControl x:Name="SoundCards" ItemsSource="{Binding Sounds}"
+                              ItemTemplate="{StaticResource SoundCardTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- boş durum -->
+            <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="Collapsed" MaxWidth="460">
+                <Border Width="96" Height="96" CornerRadius="24" Background="{DynamicResource Brush.Card}"
+                        BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
+                        HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <TextBlock Text="♪" FontSize="44" FontWeight="Bold" Foreground="{DynamicResource Brush.Accent}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Ses efektlerini ekle" FontSize="22" FontWeight="Bold"
+                           HorizontalAlignment="Center" Foreground="{DynamicResource Brush.TextPrimary}"
+                           Margin="0,0,0,8"/>
+                <TextBlock Text="MP3, WAV, OGG veya FLAC dosyalarını buraya sürükle bırak. Karşı tarafın duyması için mikrofon rehberini aç."
+                           TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,24"
+                           Foreground="{DynamicResource Brush.TextSecondary}" FontSize="13.5"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Command="{Binding AddFilesCommand}" Style="{StaticResource AccentButton}" Padding="20,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="＋" FontSize="15" Margin="0,0,8,0"/>
+                            <TextBlock Text="Ses dosyası ekle"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Click="OpenCableGuide_Click" Margin="12,0,0,0" Padding="20,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🎙" Margin="0,0,8,0"/>
+                            <TextBlock Text="Mikrofon rehberi"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+</Window>

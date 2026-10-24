@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9A655621-A75F-45A9-8C39-A0763A3D2984}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KayoneZSoundpad", "src\KayoneZSoundpad\KayoneZSoundpad.csproj", "{12CE273F-0D18-43CE-B836-201EEB557D24}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0B21D436-50EA-4CE5-9ABB-1041E34637D8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KayoneZSoundpad.Tests", "tests\KayoneZSoundpad.Tests\KayoneZSoundpad.Tests.csproj", "{9F39C23D-4CF6-4C2B-BFDE-998C64545FD9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{12CE273F-0D18-43CE-B836-201EEB557D24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12CE273F-0D18-43CE-B836-201EEB557D24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12CE273F-0D18-43CE-B836-201EEB557D24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12CE273F-0D18-43CE-B836-201EEB557D24}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F39C23D-4CF6-4C2B-BFDE-998C64545FD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F39C23D-4CF6-4C2B-BFDE-998C64545FD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F39C23D-4CF6-4C2B-BFDE-998C64545FD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F39C23D-4CF6-4C2B-BFDE-998C64545FD9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{12CE273F-0D18-43CE-B836-201EEB557D24} = {9A655621-A75F-45A9-8C39-A0763A3D2984}
+		{9F39C23D-4CF6-4C2B-BFDE-998C64545FD9} = {0B21D436-50EA-4CE5-9ABB-1041E34637D8}
+	EndGlobalSection
+EndGlobal

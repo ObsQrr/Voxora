@@ -1,0 +1,17 @@
+<Application x:Class="KayoneZSoundpad.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:KayoneZSoundpad.Views"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Theme.Dark.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVis"/>
+            <views:MuteIconConverter x:Key="MuteIconConverter"/>
+            <views:MuteTipConverter x:Key="MuteTipConverter"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
