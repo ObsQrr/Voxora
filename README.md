@@ -203,7 +203,7 @@ Aşağıdaki güvenlik korumaları uygulanmıştır:
 
 ## Lisans
 
-MIT Lisansı — Telif sahibi: KayoneZ1 (2026). [LICENSE](LICENSE) dosyasına bakın.
+MIT Lisansı — Telif sahibi: ObsQrr (2026). [LICENSE](LICENSE) dosyasına bakın.
 
 Kısa özet: Yazıyı özgürce kullanabilir, kopyalayabilir, değiştirebilir, dağıtabilir ve satabilirsiniz. Üst bildirim lisans metniyle birlikte tüm kopyalarda bulunmalı. Yazılım "olduğu gibi" sağlanır, hiçbir garanti verilmez.
 
