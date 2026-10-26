@@ -6,7 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Themes/Theme.Dark.xaml"/>
+                <!-- Theme loaded by MainWindow -->
             </ResourceDictionary.MergedDictionaries>
             <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
             <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVis"/>

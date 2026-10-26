@@ -24,11 +24,11 @@ public class PlaybackVoice
 }
 
 /// <summary>
-/// KayoneZ ses motoru.
+/// Voxora ses motoru.
 ///
 /// Mimari:
-///   [Efekt kaynakları] ──► fxMixer ──►(+FxFolume)─┬─► Çıkış aygıtı (örn. VB-CABLE "CABLE Input",
-///   [Mikrofon capture] ──►(+MicVolume, duck)──────┘   Discord "CABLE Output"u mikrofon olarak kullanır)
+///   [Efekt kaynakları] ──► fxMixer ──►(+FxFolume)─┬─► Çıkış aygıtı (örn. Voxora In Audio",
+///   [Mikrofon capture] ──►(+MicVolume, duck)──────┘   Discord "Voxora Out Audio"u mikrofon olarak kullanır)
 ///                          fxMixer ──►(+FxVolume)──► Monitör çıkışı (lokal hoparlörler)
 ///
 /// Tek karıştırma iş parçacığı 10 ms'lik bloklarla çalışır; tüm akışlar 48 kHz/2ch float.
@@ -47,7 +47,7 @@ public class AudioEngine : IDisposable
 
     // Aygıtlar / akışlar
     private MMDeviceEnumerator _enumerator = new();
-    private WasapiOut? _outMain;          // sanal mikrofon girişi (örn. CABLE Input) veya seçilen çıkış
+    private WasapiOut? _outMain;          // sanal mikrofon girişi (örn. Voxora In Audio) veya seçilen çıkış
     private WasapiOut? _outMonitor;       // lokal monitör
     private WasapiCapture? _micCapture;
     private BufferedWaveProvider? _bufMain;
@@ -159,7 +159,7 @@ public class AudioEngine : IDisposable
             if (_outMonitor != null) _bufMonitor!.AddSamples(ToBytes(silence), 0, silence.Length * sizeof(float));
 
             _running = true;
-            _mixThread = new Thread(MixLoop) { IsBackground = true, Name = "KayoneZ-Mixer", Priority = ThreadPriority.AboveNormal };
+            _mixThread = new Thread(MixLoop) { IsBackground = true, Name = "Voxora-Mixer", Priority = ThreadPriority.AboveNormal };
             _mixThread.Start();
 
             if (!mainOk)

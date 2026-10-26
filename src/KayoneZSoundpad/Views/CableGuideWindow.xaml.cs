@@ -12,17 +12,12 @@ public partial class CableGuideWindow : Window
     {
         InitializeComponent();
         _vm = vm;
-        var cableIn = vm.Devices.FindCableRender();
-        var cableOut = vm.Devices.FindCableCapture();
-        StatusText.Text = cableIn != null && cableOut != null
-            ? "✓ VB-CABLE algılandı — aşağıdaki 'otomatik ayarla' düğmesiyle çıkışı bağlayabilirsin."
-            : "✗ VB-CABLE şu an yok. Efektler yalnızca hoparlörlerinden çalar; karşı taraf duymaz.";
     }
 
-    private void Download_Click(object sender, RoutedEventArgs e)
+    private void DownloadCable_Click(object sender, RoutedEventArgs e)
     {
         try { Process.Start(new ProcessStartInfo("https://vb-audio.com/Cable/") { UseShellExecute = true }); }
-        catch { System.Windows.MessageBox.Show("Tarayıcı açılamadı. Adres: https://vb-audio.com/Cable/", "KayoneZ"); }
+        catch { System.Windows.MessageBox.Show("Tarayıcı açılamadı. Adres: https://vb-audio.com/Cable/", "Voxora"); }
     }
 
     private void AutoConfig_Click(object sender, RoutedEventArgs e)
@@ -31,14 +26,14 @@ public partial class CableGuideWindow : Window
         var cableOut = _vm.Devices.FindCableCapture();
         if (cableIn == null || cableOut == null)
         {
-            System.Windows.MessageBox.Show("VB-CABLE bulunamadı. Önce kurup bilgisayarı yeniden başlat.",
-                "KayoneZ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show("Voxora sanal aygıtları bulunamadı. VB-CABLE kurup bilgisayarı yeniden başlat.",
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (!_vm.AutoConfigureCable())
         {
-            System.Windows.MessageBox.Show("Yönlendirme ayarlanamadı.", "KayoneZ",
+            System.Windows.MessageBox.Show("Yönlendirme ayarlanamadı.", "Voxora",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -50,14 +45,19 @@ public partial class CableGuideWindow : Window
 
         System.Windows.MessageBox.Show(
             "✓ Yönlendirme kuruldu\n\n" +
-            "• Çıkış (kablo):  CABLE Input\n" +
+            "• Çıkış (kablo):  Voxora In Audio\n" +
             "• Mikrofon:       " + (mic?.Name ?? "(bulunamadı)") + (micOn ? "" : "  [KAPALI]") + "\n" +
             "• Lokal dinleme:  " + (mon?.Name ?? "(bulunamadı)") + (monOn ? "" : "  [KAPALI]") + "\n\n" +
             "Şimdi Discord / Valorant gibi uygulamada\n" +
-            "GİRİŞ AYGITI olarak \"CABLE Output\" seç.\n\n" +
+            "GİRİŞ AYGITI olarak \"Voxora Out Audio\" seç.\n\n" +
             "Not: Kendi mikrofonunu Discord'da doğrudan seçersen\n" +
-            "efektler duyulmaz — CABLE Output seçmelisin.",
-            "KayoneZ — Mikrofon Yönlendirme Hazır", MessageBoxButton.OK, MessageBoxImage.Information);
+            "efektler duyulmaz — Voxora Out Audio seçmelisin.",
+            "Voxora — Mikrofon Yönlendirme Hazır", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void OpenSoundSettings_Click(object sender, RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo("ms-settings:sound") { UseShellExecute = true }); }
+        catch { System.Windows.MessageBox.Show("Ses ayarları açılamadı.", "Voxora"); }
     }
 }
-

@@ -9,12 +9,12 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>KayoneZSoundpad</RootNamespace>
-    <AssemblyName>KayoneZSoundpad</AssemblyName>
+    <AssemblyName>Voxora</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
-    <Product>KayoneZ Soundpad</Product>
-    <Company>KayoneZ</Company>
+    <Version>1.1.0</Version>
+    <Product>Voxora</Product>
+    <Company>Voxora</Company>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
@@ -31,6 +31,8 @@
 
   <ItemGroup>
     <Resource Include="Assets\app.png" />
+    <Resource Include="Themes\Theme.Dark.xaml" />
+    <Resource Include="Themes\Theme.Light.xaml" />
   </ItemGroup>
 
 </Project>

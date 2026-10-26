@@ -7,7 +7,7 @@ namespace KayoneZSoundpad.Models;
 public class AppSettings
 {
     // Görünüm
-    [JsonPropertyName("theme")] public string Theme { get; set; } = "dark";
+    [JsonPropertyName("theme")] public string Theme { get; set; } = "light";
     [JsonPropertyName("rememberLastCategory")] public bool RememberLastCategory { get; set; } = true;
     [JsonPropertyName("lastCategoryId")] public Guid? LastCategoryId { get; set; }
 

@@ -10,10 +10,16 @@ public static class JsonStore
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        // Elle düzenlenmiş/başka araçla üretilmiş dosyalar da okunsun (id / Id / ID fark etmez)
-        PropertyNameCaseInsensitive = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // Case-sensitive property names for security
+        PropertyNameCaseInsensitive = false,
+        // Limit depth to prevent DoS
+        MaxDepth = 64,
+        // Disallow trailing commas and comments
+        AllowTrailingCommas = false,
+        ReadCommentHandling = JsonCommentHandling.Disallow,
+        // Safe encoder
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Default
     };
 
     public static T? Load<T>(string path) where T : class

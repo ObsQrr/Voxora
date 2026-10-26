@@ -45,20 +45,48 @@ public class DeviceService : IDisposable
 
             foreach (var d in _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active))
             {
-                string name;
-                try { name = d.FriendlyName; } catch { name = "(bilinmeyen aygıt)"; }
+                string originalName;
+                try { originalName = d.FriendlyName; } catch { originalName = "(bilinmeyen aygıt)"; }
+
+                // Kullanıcıya gösterilecek ad: VB-CABLE aygıtları için Voxora markalı isimler
+                string displayName = GetDisplayName(flow, originalName);
+
                 list.Add(new DeviceEntry
                 {
                     Id = d.ID,
-                    Name = name,
+                    Name = displayName,
                     IsDefault = d.ID == defaultId,
-                    IsCable = IsCableName(name)
+                    IsCable = IsCableName(originalName)
                 });
                 d.Dispose();
             }
         }
         catch { /* aygıt listesi alınamadıysa boş dön */ }
         return list.OrderBy(x => x.IsCable ? 0 : 1).ThenBy(x => x.Name).ToList();
+    }
+
+    /// <summary>
+    /// Dahili cihaz adını kullanıcı dostu gösterim adına çevirir.
+    /// Orijinal isim teknik eşleştirme için korunur (IsCableName orijinal ismi kullanır).
+    /// </summary>
+    private static string GetDisplayName(DataFlow flow, string originalName)
+    {
+        var lower = originalName.ToLowerInvariant();
+
+        // Çıkış aygıtları (Render) - Voxora'dan sanal kabloya giden ses
+        if (flow == DataFlow.Render)
+        {
+            if (lower.Contains("cable input") || lower.Contains("vb-audio virtual cable"))
+                return "Voxora In Audio";
+        }
+        // Giriş aygıtları (Capture) - Sanal kablodan Discord'a/oyuna giden ses
+        else if (flow == DataFlow.Capture)
+        {
+            if (lower.Contains("cable output") || lower.Contains("vb-audio virtual cable"))
+                return "Voxora Out Audio";
+        }
+
+        return originalName;
     }
 
     public static bool IsCableName(string name)

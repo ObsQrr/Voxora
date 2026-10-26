@@ -1,83 +1,127 @@
 <Window x:Class="KayoneZSoundpad.Views.CableGuideWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Mikrofon Yönlendirme Rehberi" Width="640" Height="560" WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource Brush.Bg}" WindowStyle="ToolWindow"
-        FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13.5"
-        ShowInTaskbar="False">
+        Title="Mikrofon Yönlendirme Rehberi" Width="720" Height="580"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.Bg}"
+        WindowStyle="ToolWindow" ShowInTaskbar="False"
+        FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13">
+
     <DockPanel>
-        <Border DockPanel.Dock="Bottom" Padding="16,12">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="VB-CABLE indir" Click="Download_Click"/>
-                <Button Content="VB-CABLE kuruluysa otomatik ayarla" Margin="10,0,0,0"
-                        Style="{StaticResource AccentButton}" Click="AutoConfig_Click"/>
-                <Button Content="Kapat" IsCancel="True" MinWidth="80" Margin="10,0,0,0"/>
-            </StackPanel>
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Panel}"
+                BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="18,14">
+            <Button Content="Kapat" IsCancel="True" MinWidth="100" Padding="16,8" HorizontalAlignment="Right"
+                    Style="{StaticResource AccentButton}" AutomationProperties.Name="Kapat"/>
         </Border>
 
-        <ScrollViewer Padding="22,20" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20">
             <StackPanel>
-                <TextBlock Text="Karşı tarafın ses efektlerini duyması" FontSize="19" FontWeight="Bold"
-                           Foreground="{DynamicResource Brush.TextPrimary}"/>
-                <TextBlock x:Name="StatusText" Style="{StaticResource Muted}" Margin="0,8,0,14" TextWrapping="Wrap"/>
-
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,0,0,14">
-                    <StackPanel>
-                        <TextBlock Text="NASIL ÇALIŞIR" Style="{StaticResource SectionLabel}" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextPrimary}"
-                                   LineHeight="21">
-                            Windows'ta bir uygulama, fiziksel mikrofonunu doğrudan "sanal mikrofon" olarak
-                            gösteremez — bunu yapmanın yolu <Bold>sanal ses kablosudur</Bold>. VB-CABLE (ücretsiz),
-                            sisteme iki uçlu bir kablo ekler: <Bold>CABLE Input</Bold> (çalma aygıtı) ve
-                            <Bold>CABLE Output</Bold> (mikrofon gibi görünen kayıt aygıtı).
-                            <LineBreak/><LineBreak/>
-                            KayoneZ Soundpad efektlerini CABLE Input'a çalar, gerçek mikrofonunu da aynı
-                            kablo üzerine karıştırır. Discord / Valorant tarafında mikrofon olarak
-                            CABLE Output'u seçtiğinde karşı taraf hem efektleri hem sesini duyar.
-                        </TextBlock>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                    <Border Width="56" Height="56" CornerRadius="12" Background="{DynamicResource Brush.Accent}">
+                        <TextBlock Text="&#xE720;" Style="{StaticResource Icon}" FontSize="28"
+                                   Foreground="{DynamicResource Brush.OnAccent}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Mikrofon Yönlendirme Rehberi" FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"/>
+                        <TextBlock Text="Ses efektlerinin karşı tarafa gitmesi için sanal kablo kurulumu" FontSize="13"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"/>
                     </StackPanel>
-                </Border>
+                </StackPanel>
 
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,0,0,14">
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="KURULUM ADIMLARI" Style="{StaticResource SectionLabel}" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextPrimary}"
+                        <TextBlock Text="ADIM 1: VB-CABLE KURULUMU" Style="{StaticResource SectionLabel}" Margin="0,0,0,12"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource Brush.TextSecondary}"
                                    LineHeight="22">
-                            <Bold>1.</Bold> vb-audio.com/Cable adresinden VB-CABLE'ı indir, yönetici olarak kur,
-                            bilgisayarı yeniden başlat.<LineBreak/>
-                            <Bold>2.</Bold> Burada (veya alt barda) <Bold>Çıkış = CABLE Input</Bold> seç.
-                            <LineBreak/>
-                            <Bold>3.</Bold> Discord: Ayarlar → Ses ve Görüntü → Giriş Aygıtı = <Bold>CABLE Output</Bold>.
-                            Valorant: ayarlar → ses → girişte CABLE Output seç (mikrofon testi ile doğrula).
-                            <LineBreak/>
-                            <Bold>4.</Bold> Bu uygulamada <Bold>mikrofonunu aktif et</Bold> ve alt bardan mikrofon
-                            seviyesini ayarla — sesin efektlerle karışıp kablo üzerinden gider.
-                            <LineBreak/>
-                            <Bold>5.</Bold> Kendi kulağının duyması için <Bold>"lokal dinle"</Bold> açık olsun.
-                            <LineBreak/><LineBreak/>
-                            <Bold>Not:</Bold> Bu uygulama kapalıyken CABLE Output sessizdir (Discord'da sesin
-                            gitmez). Uygulamayı sistem tepsisinde tutman önerilir. Ayrıca Discord'un "otomatik
-                            giriş duyarlılığı" yerine klavye kısayolu (push-to-talk) kullanmak efektlerin
-                            kesilmesini önler.
+                            1. <Run FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}">https://vb-audio.com/Cable/</Run> adresine gidin.
+                            <LineBreak/>2. "Download" → "VB-CABLE Driver" indirin.
+                            <LineBreak/>3. Arşivi çıkartın, <Run FontWeight="SemiBold">VBCABLE_Driver64.exe</Run> yönetici olarak çalıştırın.
+                            <LineBreak/>4. Bilgisayarı yeniden başlatın.
+                        </TextBlock>
+                        <Button Style="{StaticResource AccentButton}"
+                                Click="DownloadCable_Click" Padding="16,10" Margin="0,4,0,0"
+                                HorizontalAlignment="Left" AutomationProperties.Name="VB-CABLE indir">
+                            <Button.Content>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE896;" Style="{StaticResource IconSm}" Margin="0,0,8,0"
+                                               Foreground="{DynamicResource Brush.OnAccent}"/>
+                                    <TextBlock Text="İndirme Sayfasını Aç"/>
+                                </StackPanel>
+                            </Button.Content>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="ADIM 2: WINDOWS SES AYARLARI" Style="{StaticResource SectionLabel}" Margin="0,0,0,12"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Border Width="32" Height="32" CornerRadius="6" Background="{DynamicResource Brush.AccentDim}">
+                                <TextBlock Text="1" FontWeight="Bold" Foreground="{DynamicResource Brush.Accent}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       Foreground="{DynamicResource Brush.TextSecondary}">
+                                <Run Text="Çıkış aygıtını "/>
+                                <Run FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Text="Voxora In Audio"/>
+                                <Run Text=" yapın"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Border Width="32" Height="32" CornerRadius="6" Background="{DynamicResource Brush.AccentDim}">
+                                <TextBlock Text="2" FontWeight="Bold" Foreground="{DynamicResource Brush.Accent}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       Foreground="{DynamicResource Brush.TextSecondary}">
+                                <Run Text="Giriş aygıtını kendi mikrofonunuz (ör. "/>
+                                <Run FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Text="HyperX DuoCast"/>
+                                <Run Text=") yapın"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <Button Click="OpenSoundSettings_Click" Padding="14,8"
+                                Margin="0,8,0,0" HorizontalAlignment="Left"
+                                AutomationProperties.Name="Windows ses ayarlarını aç">
+                            <Button.Content>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE713;" Style="{StaticResource IconSm}" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Ses Ayarlarını Aç"/>
+                                </StackPanel>
+                            </Button.Content>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="ADIM 3: DISCORD / OYUN AYARLARI" Style="{StaticResource SectionLabel}" Margin="0,0,0,12"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Foreground="{DynamicResource Brush.TextSecondary}"
+                                   LineHeight="22">
+                            Discord'da: <Run FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}">Kullanıcı Ayarları → Ses ve Video</Run>
+                            <LineBreak/>• Giriş Aygıtı: <Run FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}">Voxora Out Audio</Run>
+                            <LineBreak/>• <Run FontWeight="SemiBold" Foreground="{DynamicResource Brush.Danger}">Gürültü Bastırma, Yankı İptali, Otomatik Kazanç: KAPALI</Run> (Krisp açıkken efektler bozulur)
                         </TextBlock>
                     </StackPanel>
                 </Border>
 
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="18">
-                    <StackPanel>
-                        <TextBlock Text="VB-CABLE OLMADAN" Style="{StaticResource SectionLabel}" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}"
-                                   LineHeight="21">
-                            VB-CABLE kurmak istemiyorsan: efektleri hoparlörlerinden çalıp Discord'da
-                            "Stereo Mix" (Realtek) gibi bir loopback kayıt aygıtını mikrofon yapabilirsin —
-                            ancak bu yöntemde arkadaşların hem efektleri hem tüm sistem sesini duyar ve
-                            mikrofonun hiç duyulmaz. En temiz sonuç VB-CABLE ile olur.
+                <Border Background="{DynamicResource Brush.AccentDim}" BorderBrush="{DynamicResource Brush.Accent}"
+                        BorderThickness="1" CornerRadius="10" Padding="16">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE946;" Style="{StaticResource Icon}" FontSize="18"
+                                   Foreground="{DynamicResource Brush.Accent}" Margin="0,0,12,0"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextPrimary}" VerticalAlignment="Center">
+                            <Run FontWeight="SemiBold">Otomatik yapılandırma:</Run> Ayarlar penceresindeki <Run FontWeight="SemiBold">"Oto Ayarla"</Run> butonu Voxora sanal aygıtlarını algılayıp çıkışı Voxora In Audio, mikrofonu varsayılan aygıta çeker.
                         </TextBlock>
                     </StackPanel>
                 </Border>
+
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

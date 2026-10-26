@@ -2,150 +2,233 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:KayoneZSoundpad.Views"
-        Title="Ayarlar" Width="620" Height="660" WindowStartupLocation="CenterOwner"
+        Title="Ayarlar" Width="680" Height="720" WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Bg}" WindowStyle="ToolWindow"
-        FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13.5"
+        FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13"
         ShowInTaskbar="False">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Themes/Theme.Dark.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVis"/>
+            <views:MuteIconConverter x:Key="MuteIconConverter"/>
+            <views:MuteTipConverter x:Key="MuteTipConverter"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <DockPanel>
-        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Sidebar}"
-                BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0" Padding="16,12">
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Panel}"
+                BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="18,14">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="İptal" IsCancel="True" MinWidth="92"/>
-                <Button Content="Kaydet" MinWidth="92" Margin="10,0,0,0" Style="{StaticResource AccentButton}" Click="Save_Click"/>
+                <Button Content="İptal" IsCancel="True" MinWidth="100" Padding="16,8"
+                        AutomationProperties.Name="İptal"/>
+                <Button Content="Kaydet" MinWidth="100" Margin="10,0,0,0" Style="{StaticResource AccentButton}"
+                        Click="Save_Click" Padding="16,8" AutomationProperties.Name="Kaydet"/>
             </StackPanel>
         </Border>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,18">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20">
             <StackPanel>
+
                 <!-- GENEL -->
-                <TextBlock Text="GENEL" Style="{StaticResource SectionLabel}"/>
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,8,0,16">
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Tema" Width="190" VerticalAlignment="Center"/>
-                            <ComboBox x:Name="ThemeCombo" Width="180" SelectedIndex="0">
-                                <ComboBoxItem Content="Koyu"/>
-                                <ComboBoxItem Content="Açık"/>
+                        <TextBlock Text="GENEL" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="Tema" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <ComboBox x:Name="ThemeCombo" Grid.Column="1" Width="200" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Uygulama Teması">
+                                <ComboBoxItem Content="Koyu" Tag="dark"/>
+                                <ComboBoxItem Content="Açık" Tag="light"/>
                             </ComboBox>
-                        </StackPanel>
-                        <CheckBox x:Name="AutoStartCheck" Content="Windows açılışında başlat" Margin="0,10,0,0"/>
-                        <CheckBox x:Name="StartMinimizedCheck" Content="Sistem tepsisinde küçülerek başla" Margin="0,10,0,0"/>
-                        <CheckBox x:Name="CloseToTrayCheck" Content="Kapatınca sistem tepsisinde kal" Margin="0,10,0,0"/>
-                        <CheckBox x:Name="CopyCheck" Content="Eklenen sesleri kütüphane klasörüne kopyala (orijinal dosya silinse de çalışır)" Margin="0,10,0,0"/>
-                        <CheckBox x:Name="RememberCatCheck" Content="Son kullanılan kategoriyi hatırla" Margin="0,10,0,0"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                            <TextBlock Text="Yeni seslerin varsayılan davranışı" Width="190" VerticalAlignment="Center"/>
-                            <ComboBox x:Name="BehaviorCombo" Width="180" SelectedIndex="0">
+
+                            <CheckBox x:Name="AutoStartCheck" Grid.Row="1" Grid.ColumnSpan="2"
+                                      Content="Windows açılışında başlat" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Windows açılışında başlat"/>
+
+                            <CheckBox x:Name="StartMinimizedCheck" Grid.Row="2" Grid.ColumnSpan="2"
+                                      Content="Küçültülmüş başlat" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Küçültülmüş başlat"/>
+
+                            <CheckBox x:Name="CloseToTrayCheck" Grid.Row="3" Grid.ColumnSpan="2"
+                                      Content="Kapat tuşu tepsiye küçültür" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Kapat tuşu tepsiye küçültür"/>
+
+                            <CheckBox x:Name="CopyCheck" Grid.Row="4" Grid.ColumnSpan="2"
+                                      Content="İçe aktarılan dosyaları Sounds klasörüne kopyala" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Dosyaları kopyala"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- DAVRANIŞ -->
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="DAVRANIŞ" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="Yeni sesin davranışı" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <ComboBox x:Name="BehaviorCombo" Grid.Column="1" Width="220" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Yeni ses davranışı">
                                 <ComboBoxItem Content="Yeniden başlat"/>
                                 <ComboBoxItem Content="Üstüne çal"/>
                                 <ComboBoxItem Content="Çalıyorsa durdur"/>
                             </ComboBox>
-                        </StackPanel>
+
+                            <CheckBox x:Name="SuppressCheck" Grid.Row="1" Grid.ColumnSpan="2"
+                                      Content="Kısayolların diğer uygulamalara gitmesini engelle" Margin="0,0,0,10"
+                                      AutomationProperties.Name="Kısayolları yakala"/>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="Motor gecikmesi" Width="160" VerticalAlignment="Center"/>
+                                <Slider x:Name="LatencySlider" Width="220" Minimum="20" Maximum="200" TickFrequency="10"
+                                        IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                        ValueChanged="LatencySlider_ValueChanged"
+                                        AutomationProperties.Name="Motor gecikmesi (ms)"/>
+                                <TextBlock x:Name="LatencyLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Text="50 ms"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="Bellek önbelleği" Width="160" VerticalAlignment="Center"/>
+                                <Slider x:Name="CacheSlider" Width="220" Minimum="32" Maximum="2048" TickFrequency="64"
+                                        IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                        ValueChanged="CacheSlider_ValueChanged"
+                                        AutomationProperties.Name="Bellek önbelleği (MB)"/>
+                                <TextBlock x:Name="CacheLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Text="256 MB"/>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- SES -->
-                <TextBlock Text="SES" Style="{StaticResource SectionLabel}"/>
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,8,0,16">
+                <!-- SES YÖNLENDİRME -->
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Motor gecikmesi" Width="190" VerticalAlignment="Center"
-                                       ToolTip="Düşük = hızlı tepki; ses kopması olursa artır"/>
-                            <Slider x:Name="LatencySlider" Width="130" Minimum="20" Maximum="200" Value="50"
-                                    IsSnapToTickEnabled="True" TickFrequency="5" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="LatencyLabel" Style="{StaticResource Muted}" Margin="10,0,0,0" Text="50 ms"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                            <TextBlock Text="Bellek önbelleği (MB)" Width="190" VerticalAlignment="Center"
-                                       ToolTip="Sık çalınan sesler bellekte tutulur; kapasite aşılırsa dosyadan akıtılır"/>
-                            <Slider x:Name="CacheSlider" Width="130" Minimum="64" Maximum="1024" Value="256"
-                                    IsSnapToTickEnabled="True" TickFrequency="32" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="CacheLabel" Style="{StaticResource Muted}" Margin="10,0,0,0" Text="256 MB"/>
-                        </StackPanel>
-                        <CheckBox x:Name="DuckCheck" Content="Efekt çalarken mikrofonu kıs (ducking)" Margin="0,12,0,0"/>
-                        <StackPanel Orientation="Horizontal" Margin="22,8,0,2">
-                            <TextBlock Text="Kısma oranı" Width="168" VerticalAlignment="Center"/>
-                            <Slider x:Name="DuckSlider" Width="130" Minimum="0" Maximum="1" Value="0.25"
-                                    VerticalAlignment="Center"/>
-                            <TextBlock x:Name="DuckLabel" Style="{StaticResource Muted}" Margin="10,0,0,0" Text="%25"/>
-                        </StackPanel>
+                        <TextBlock Text="SES YÖNLENDİRME" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="Çıkış (Discord/Oyun)" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"
+                                       ToolTip="VB-CABLE kuruluysa 'Voxora In Audio' seçin; Discord'da mikrofonu 'Voxora Out Audio' yapın"/>
+                            <ComboBox x:Name="OutputCombo" Grid.Column="1" MinWidth="300" Margin="0,0,0,10"
+                                      ItemsSource="{Binding RenderDevices}" SelectedValuePath="Id"
+                                      SelectedValue="{Binding Settings.OutputDeviceId, Mode=TwoWay}"
+                                      AutomationProperties.Name="Çıkış Aygıtı"/>
+
+                            <TextBlock Grid.Row="1" Text="Mikrofon" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <ComboBox x:Name="MicCombo" Grid.Row="1" Grid.Column="1" MinWidth="300" Margin="0,0,0,10"
+                                      ItemsSource="{Binding CaptureDevices}" SelectedValuePath="Id"
+                                      SelectedValue="{Binding Settings.MicDeviceId, Mode=TwoWay}"
+                                      AutomationProperties.Name="Mikrofon Aygıtı"/>
+
+                            <TextBlock Grid.Row="2" Text="Lokal Monitör (Kulaklık)" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <ComboBox x:Name="MonitorCombo" Grid.Row="2" Grid.Column="1" MinWidth="300" Margin="0,0,0,10"
+                                      ItemsSource="{Binding RenderDevices}" SelectedValuePath="Id"
+                                      SelectedValue="{Binding Settings.MonitorDeviceId, Mode=TwoWay}"
+                                      AutomationProperties.Name="Monitör Aygıtı"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- AYGITLAR -->
-                <TextBlock Text="SES AYGITLARI" Style="{StaticResource SectionLabel}"/>
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,8,0,16">
+                <!-- DUCKING -->
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="Çıkış (oyun/Discord)" Width="190" VerticalAlignment="Center"
-                                       ToolTip="VB-CABLE kuruluysa 'CABLE Input' seç; Discord'da mikrofonu 'CABLE Output' yap"/>
-                            <ComboBox x:Name="OutputCombo" Width="300" ItemsSource="{Binding RenderDevices}"/>
+                        <TextBlock Text="DUCKING (Mikrofon Kısma)" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <CheckBox x:Name="DuckCheck" Content="Efekt çalarken mikrofonu kıs" Margin="0,0,0,10"
+                                  AutomationProperties.Name="Ducking aktif"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="Kısma oranı" Width="160" VerticalAlignment="Center"/>
+                            <Slider x:Name="DuckSlider" Width="220" Minimum="0" Maximum="1" TickFrequency="0.05"
+                                    IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                    ValueChanged="DuckSlider_ValueChanged"
+                                    AutomationProperties.Name="Ducking oranı"/>
+                            <TextBlock x:Name="DuckLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                       VerticalAlignment="Center" Text="%25"/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                            <TextBlock Text="Mikrofon" Width="190" VerticalAlignment="Center"/>
-                            <ComboBox x:Name="MicCombo" Width="300" ItemsSource="{Binding CaptureDevices}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                            <TextBlock Text="Lokal monitör (hoparlör)" Width="190" VerticalAlignment="Center"
-                                       ToolTip="Efektleri kendi kulağının da duyması için"/>
-                            <ComboBox x:Name="MonitorCombo" Width="300" ItemsSource="{Binding RenderDevices}"/>
-                        </StackPanel>
-                        <CheckBox x:Name="MonitorCheck" Content="Efektleri lokalde de çal" Margin="0,12,0,0"/>
                     </StackPanel>
                 </Border>
 
                 <!-- KISAYOLLAR -->
-                <TextBlock Text="KISAYOLLAR" Style="{StaticResource SectionLabel}"/>
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,8,0,16">
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Tüm sesleri durdur" Width="190" VerticalAlignment="Center"/>
-                            <views:HotkeyBox x:Name="StopAllHotkeyBox" Width="300" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                        <CheckBox x:Name="SuppressCheck" Content="Kısayol tuşlarını oyuna/app'e iletme (bastır)" Margin="0,12,0,0"/>
-                        <TextBlock Text="Ses başına kısayolları kart üzerinde sağ tık → Düzenle'den atarsın." Style="{StaticResource Muted}" Margin="0,10,0,0"/>
-                    </StackPanel>
-                </Border>
+                        <TextBlock Text="KISAYOLLAR" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
-                <!-- SANAL MİKROFON REHBERİ -->
-                <TextBlock Text="SANAL MİKROFON" Style="{StaticResource SectionLabel}"/>
-                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,8,0,8">
-                    <StackPanel>
-                        <TextBlock x:Name="CableStatusText" Style="{StaticResource Muted}" TextWrapping="Wrap"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource Brush.TextPrimary}">
-                            Karşı tarafın efektleri duyması için sanal bir ses kablosu (VB-CABLE) gerekir:
-                            <LineBreak/>
-                            1. VB-CABLE'ı kur (ücretsiz) ve bilgisayarı yeniden başlat.
-                            <LineBreak/>
-                            2. Bu uygulamada Çıkış = <Bold>CABLE Input</Bold> seç.
-                            <LineBreak/>
-                            3. Discord / oyun ayarlarında mikrofon = <Bold>CABLE Output</Bold> seç.
-                            <LineBreak/>
-                            4. Bu uygulamada mikrofonunu aktif et: gerçek mikrofonun sesi efektlerle
-                            karıştırılıp CABLE'a gönderilir.
-                        </TextBlock>
-                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                            <Button Click="DownloadCable_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⬇" Margin="0,0,6,0"/>
-                                    <TextBlock Text="VB-CABLE indir"/>
-                                </StackPanel>
-                            </Button>
-                            <Button x:Name="AutoConfigBtn" Click="AutoConfig_Click" Margin="10,0,0,0"
-                                    ToolTip="VB-CABLE kuruluysa çıkışı CABLE Input yapar, mikrofonu aktif eder">
-                                <TextBlock Text="Otomatik ayarla"/>
-                            </Button>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="Tümünü Durdur" Width="160" VerticalAlignment="Center"/>
+                            <views:HotkeyBox x:Name="StopAllHotkeyBox" Width="300" HorizontalAlignment="Left"
+                                             AutomationProperties.Name="Tüm sesleri durdur kısayolu"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <TextBlock x:Name="AboutText" Style="{StaticResource Muted}" TextWrapping="Wrap"
-                           Margin="0,4,0,18"/>
+                <!-- HAKKINDA -->
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="HAKKINDA" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Border Width="48" Height="48" CornerRadius="10" Background="{DynamicResource Brush.Accent}">
+                                <TextBlock Text="&#xE767;" Style="{StaticResource Icon}" FontSize="24"
+                                           Foreground="{DynamicResource Brush.OnAccent}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Voxora v1.1" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Brush.TextPrimary}"/>
+                                <TextBlock Text="NAudio/WASAPI tabanlı ses efekti pedi" FontSize="12"
+                                           Foreground="{DynamicResource Brush.TextSecondary}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock x:Name="AboutText" FontSize="12" Foreground="{DynamicResource Brush.TextMuted}"
+                                   Margin="62,0,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

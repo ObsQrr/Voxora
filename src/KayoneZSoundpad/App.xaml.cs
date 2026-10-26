@@ -36,17 +36,24 @@ public partial class App : System.Windows.Application
         _singleInstanceMutex = new Mutex(true, "KayoneZSoundpad_SingleInstance", out var isNew);
         if (!isNew)
         {
-            System.Windows.MessageBox.Show("KayoneZ Soundpad zaten çalışıyor (sistem tepsisine bakın).",
-                "KayoneZ Soundpad", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show("Voxora zaten çalışıyor (sistem tepsisine bakın).",
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
 
-        // yakalanmayan hata → çökme raporu, uygulama kapanmasın
+        // yakalanmayan hata -> gunege yaz, uygulama kapanmasin
         DispatcherUnhandledException += (_, args) =>
         {
+            try
+            {
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(System.IO.Path.GetTempPath(), "voxora-ui.log"),
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " DISPATCHER EXCEPTION: " + args.Exception.GetType().Name + ": " + args.Exception.Message + Environment.NewLine + args.Exception.StackTrace + Environment.NewLine + Environment.NewLine);
+            }
+            catch { }
             System.Windows.MessageBox.Show($"Beklenmeyen hata: {args.Exception.Message}\n\n{args.Exception.StackTrace}",
-                "KayoneZ Soundpad — Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+                "Voxora - Hata", MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
 

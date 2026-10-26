@@ -39,7 +39,7 @@ public class ImportExportService
 
     private class ExportData
     {
-        [JsonPropertyName("app")] public string App { get; set; } = "KayoneZSoundpad";
+        [JsonPropertyName("app")] public string App { get; set; } = "Voxora";
         [JsonPropertyName("version")] public int Version { get; set; } = 1;
         [JsonPropertyName("categories")] public List<Category> Categories { get; set; } = new();
         [JsonPropertyName("sounds")] public List<ExportSound> Sounds { get; set; } = new();
@@ -95,7 +95,25 @@ public class ImportExportService
         var tempDir = Path.Combine(Path.GetTempPath(), "kayonez-import-" + Guid.NewGuid().ToString("N")[..8]);
         try
         {
-            ZipFile.ExtractToDirectory(zipPath, tempDir);
+            // Safe extraction with zip slip protection
+            Directory.CreateDirectory(tempDir);
+            using (var archive = ZipFile.OpenRead(zipPath))
+            {
+                foreach (var entry in archive.Entries)
+                {
+                    // Prevent directory traversal
+                    var destinationPath = Path.GetFullPath(Path.Combine(tempDir, entry.FullName));
+                    var tempDirFull = Path.GetFullPath(tempDir);
+                    if (!destinationPath.StartsWith(tempDirFull, StringComparison.OrdinalIgnoreCase))
+                        continue; // skip malicious entry
+                    // Ensure directory exists
+                    var dir = Path.GetDirectoryName(destinationPath);
+                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                    // Extract
+                    entry.ExtractToFile(destinationPath, overwrite: true);
+                }
+            }
+
             var data = JsonStore.Load<ExportData>(Path.Combine(tempDir, "library.json"));
             if (data == null) throw new InvalidDataException("Geçersiz yedek dosyası (library.json yok).");
 
@@ -107,11 +125,16 @@ public class ImportExportService
             int added = 0;
             foreach (var es in data.Sounds)
             {
-                var file = Path.Combine(tempDir, es.File.Replace('/', Path.DirectorySeparatorChar));
-                if (!File.Exists(file)) continue;
-                if (!SoundFormatSupported(file)) continue;
+                // Resolve file path safely
+                var requestedPath = Path.Combine(tempDir, es.File.Replace('/', Path.DirectorySeparatorChar));
+                var resolvedPath = Path.GetFullPath(requestedPath);
+                var tempDirFull = Path.GetFullPath(tempDir);
+                if (!resolvedPath.StartsWith(tempDirFull, StringComparison.OrdinalIgnoreCase))
+                    continue; // path traversal attempt
+                if (!File.Exists(resolvedPath)) continue;
+                if (!SoundFormatSupported(resolvedPath)) continue;
 
-                var item = _library.AddSound(file, es.CategoryId, copyToLibrary,
+                var item = _library.AddSound(resolvedPath, es.CategoryId, copyToLibrary,
                     color: es.Color, icon: es.Icon, displayName: es.Name);
                 item.Hotkey = es.HotkeyVk is int vk && vk != 0
                     ? new HotkeyGesture { VirtualKey = vk, Modifiers = (HotkeyModifiers)(es.HotkeyMods ?? 0) }

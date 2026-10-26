@@ -88,7 +88,7 @@ public partial class HotkeyBox : System.Windows.Controls.UserControl
         if (Value?.IsValid == true)
         {
             Display.Text = Value.ToString();
-            Display.Foreground = (System.Windows.Media.Brush)FindResource("System.Windows.Media.Brush.Accent");
+            Display.Foreground = (System.Windows.Media.Brush)(TryFindResource("Brush.Accent") ?? System.Windows.Media.Brushes.White);
             Display.FontWeight = FontWeights.SemiBold;
         }
         else if (pending)
@@ -99,12 +99,12 @@ public partial class HotkeyBox : System.Windows.Controls.UserControl
             if (_pendingModifiers.HasFlag(HotkeyModifiers.Shift)) parts.Add("Shift");
             if (_pendingModifiers.HasFlag(HotkeyModifiers.Win)) parts.Add("Win");
             Display.Text = (parts.Count > 0 ? string.Join(" + ", parts) + " + ..." : "...") + " (tuşa bas)";
-            Display.Foreground = (System.Windows.Media.Brush)FindResource("System.Windows.Media.Brush.TextSecondary");
+            Display.Foreground = (System.Windows.Media.Brush)(TryFindResource("Brush.TextSecondary") ?? System.Windows.Media.Brushes.Gray);
         }
         else
         {
             Display.Text = "Tıkla ve kısayol tuşlarına bas (Esc = temizle)";
-            Display.Foreground = (System.Windows.Media.Brush)FindResource("System.Windows.Media.Brush.TextMuted");
+            Display.Foreground = (System.Windows.Media.Brush)(TryFindResource("Brush.TextMuted") ?? System.Windows.Media.Brushes.Gray);
             Display.FontWeight = FontWeights.Normal;
         }
     }

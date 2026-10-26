@@ -103,7 +103,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         LoadSounds();
         RefreshDevices();
-        // VB-CABLE kurulduysa ve ??k??Y CABLE Input de?Yilse otomatik kur (bozuk/eksik ayar self-heal)
+        // VB-CABLE kurulduysa ve Çıkış Voxora In Audio değilse otomatik kur (bozuk/eksik ayar self-heal)
         try
         {
             var cableIn = _devices.FindCableRender();
@@ -301,17 +301,17 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RenderDevices));
         OnPropertyChanged(nameof(CaptureDevices));
 
-        // VB-CABLE durumu
+        // Voxora sanal aygıtı durumu
         var cableIn = renders.FirstOrDefault(d => d.IsCable);
-        var cableOut = captures.FirstOrDefault(d => d.Name.Contains("CABLE Output", StringComparison.OrdinalIgnoreCase));
+        var cableOut = captures.FirstOrDefault(d => d.IsCable);
         bool routingActive = Settings.OutputDeviceId != null &&
                              renders.Any(d => d.Id == Settings.OutputDeviceId && d.IsCable);
 
         CableStatusText = (cableIn != null && cableOut != null)
             ? (routingActive
-                ? "✓ VB-CABLE bağlı — efektler mikrofonuna gidiyor"
-                : "⚠ VB-CABLE kurulu ama çıkış bağlı değil (tıkla)")
-            : "VB-CABLE bulunamadı (rehber için tıkla)";
+                ? "✓ Voxora sanal aygıtları bağlı — efektler mikrofonuna gidiyor"
+                : "⚠ Voxora sanal aygıtları kurulu ama çıkış bağlı değil (tıkla)")
+            : "Voxora sanal aygıtları bulunamadı (rehber için tıkla)";
 
         ApplyEngineConfig();
     }
@@ -353,10 +353,10 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// VB-CABLE varsa tam mikrofon yönlendirmesini otomatik kurar:
-    ///   Çıkış  = CABLE Input   → Discord/oyun burayı mikrofon olarak alır
-    ///   Mikrofon = gerçek mikrofon (CABLE Output değil — geri besleme olmaz)
-    ///   Monitör = CABLE olmayan varsayılan çıkış (lokal dinleme)
+    /// Voxora sanal aygıtları varsa tam mikrofon yönlendirmesini otomatik kurar:
+    ///   Çıkış  = Voxora In Audio   → Discord/oyun burayı mikrofon olarak alır
+    ///   Mikrofon = gerçek mikrofon (Voxora Out Audio değil — geri besleme olmaz)
+    ///   Monitör = Voxora olmayan varsayılan çıkış (lokal dinleme)
     /// </summary>
     public bool AutoConfigureCable()
     {
@@ -364,10 +364,10 @@ public class MainViewModel : INotifyPropertyChanged
         var cableOut = _devices.FindCableCapture();
         if (cableIn == null || cableOut == null) return false;
 
-        // 1) Ana çıkış = CABLE Input
+        // 1) Ana çıkış = Voxora In Audio
         Settings.OutputDeviceId = cableIn.Id;
 
-        // 2) Mikrofon kaynağı = CABLE olmayan gerçek mikrofon (mevcut geçerli ayar korunur)
+        // 2) Mikrofon kaynağı = Voxora olmayan gerçek mikrofon (mevcut geçerli ayar korunur)
         var currentMic = CaptureDevices.FirstOrDefault(d => d.Id == Settings.MicDeviceId);
         if (currentMic == null || currentMic.IsCable)
         {
@@ -376,7 +376,7 @@ public class MainViewModel : INotifyPropertyChanged
             if (realMic != null) Settings.MicDeviceId = realMic.Id;
         }
 
-        // 3) Monitör = CABLE olmayan çıkış (varsayılan tercih edilir)
+        // 3) Monitör = Voxora olmayan çıkış (varsayılan tercih edilir)
         var currentMon = RenderDevices.FirstOrDefault(d => d.Id == Settings.MonitorDeviceId);
         if (currentMon == null || currentMon.IsCable)
         {
@@ -391,7 +391,7 @@ public class MainViewModel : INotifyPropertyChanged
         return true;
     }
 
-    /// <summary>Yönlendirme yapılandırılmış mı? (çıkış CABLE Input ise hazır)</summary>
+    /// <summary>Yönlendirme yapılandırılmış mı? (çıkış Voxora In Audio ise hazır)</summary>
     public bool IsCableRoutingActive =>
         RenderDevices.Any(d => d.Id == Settings.OutputDeviceId && d.IsCable);
 
@@ -412,8 +412,10 @@ public class MainViewModel : INotifyPropertyChanged
 
     // ------------------------------------------------------------ komutlar
 
-    public RelayCommand AddFilesCommand => new(_ => RequestAddFiles());
-    public RelayCommand AddFolderCommand => new(_ => RequestAddFolder());
+    public RelayCommand AddFilesCommand => new(files => AddFiles(files as string[] ?? Array.Empty<string>()));
+    public RelayCommand AddFolderCommand => new(folder => AddFolder(folder as string));
+    public RelayCommand ImportLibraryCommand => new(path => ImportLibrary(path as string));
+    public RelayCommand ExportLibraryCommand => new(path => ExportLibrary(path as string));
     public RelayCommand StopAllCommand => new(_ =>
     {
         _playback.StopAll();
@@ -466,13 +468,51 @@ public class MainViewModel : INotifyPropertyChanged
         }
     });
 
-    public event Action? AddFilesRequested;
-    public event Action? AddFolderRequested;
-    public event Action? AddCategoryRequested;
-
     private void RequestAddFiles() => AddFilesRequested?.Invoke();
     private void RequestAddFolder() => AddFolderRequested?.Invoke();
     private void RequestAddCategory() => AddCategoryRequested?.Invoke();
+
+    public void AddFiles(string[] paths)
+    {
+        foreach (var p in paths)
+        {
+            if (!File.Exists(p)) continue;
+            try { _library.AddSound(p, SelectedCategory?.Id, Settings.CopyOnImport); }
+            catch { }
+        }
+        ReloadSounds();
+    }
+
+    public void AddFolder(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
+        var files = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories)
+            .Where(f => LibraryService.IsSupportedFormat(f));
+        foreach (var f in files)
+        {
+            try { _library.AddSound(f, SelectedCategory?.Id, Settings.CopyOnImport); }
+            catch { }
+        }
+        ReloadSounds();
+    }
+
+    public void ImportLibrary(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+        // TODO: Implement zip import
+        NotifyInfo?.Invoke("İçe aktarma henüz uygulanmadı.");
+    }
+
+    public void ExportLibrary(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        // TODO: Implement zip export
+        NotifyInfo?.Invoke("Dışa aktarma henüz uygulanmadı.");
+    }
+
+    public event Action? AddFilesRequested;
+    public event Action? AddFolderRequested;
+    public event Action? AddCategoryRequested;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

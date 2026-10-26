@@ -1,5 +1,40 @@
+# Build outputs
 bin/
 obj/
 publish/
+dist/
+
+# IDE / tooling
 .vs/
 *.user
+
+# NuGet / MSBuild generated
+project.assets.json
+project.nuget.cache
+*.nuget.g.props
+*.nuget.g.targets
+*.nuget.dgspec.json
+
+# Generated source files
+*.AssemblyInfo.cs
+*.GlobalUsings.g.cs
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.genruntimeconfig.cache
+*.AssemblyReference.cache
+*.CoreCompileInputs.cache
+*.AssemblyInfoInputs.cache
+*.FileListAbsolute.txt
+*.assets.cache
+*_Up2Date
+*.Up2Date
+
+# Installer compiled output (keep the .iss script)
+installer/*.exe
+installer/Setup.exe
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
