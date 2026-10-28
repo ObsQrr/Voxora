@@ -204,6 +204,17 @@
         </Setter>
     </Style>
 
+    <!-- Icon style for Segoe MDL2 Assets -->
+    <Style x:Key="Icon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="IconSm" TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+
     <!-- TextBlock base -->
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>

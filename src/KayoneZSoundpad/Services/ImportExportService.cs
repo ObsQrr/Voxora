@@ -8,16 +8,23 @@ namespace KayoneZSoundpad.Services;
 /// <summary>
 /// Kütüphane yedekleme: tüm sesler + library.json tek .zip içinde.
 /// Ayarlar makineye özel aygıt id'leri içerdiğinden aktarılmaz.
+///
+/// Güvenlik: zip-slip, symlink, zip-bomb (boyut/adet sınırı) ve bozuk
+/// metadata korumaları içerir.
 /// </summary>
 public class ImportExportService
 {
+    private const int MaxEntries = 5000;
+    private const long MaxTotalUncompressed = 2L * 1024 * 1024 * 1024; // 2 GB
+    private const long MaxSingleEntry = 512L * 1024 * 1024;            // 512 MB
+    private const long MaxLibraryJson = 8L * 1024 * 1024;              // 8 MB
+
     private readonly LibraryService _library;
-    private readonly SettingsService _settings;
 
     public ImportExportService(LibraryService library, SettingsService settings)
     {
         _library = library;
-        _settings = settings;
+        _ = settings; // ayarlar makineye özel olduğu için yedeğe dahil edilmez
     }
 
     private class ExportSound
@@ -47,7 +54,7 @@ public class ImportExportService
 
     public int Export(string zipPath)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "kayonez-export-" + Guid.NewGuid().ToString("N")[..8]);
+        var tempDir = Path.Combine(Path.GetTempPath(), "voxora-export-" + Guid.NewGuid().ToString("N")[..8]);
         try
         {
             Directory.CreateDirectory(tempDir);
@@ -79,8 +86,13 @@ public class ImportExportService
             }
             JsonStore.Save(Path.Combine(tempDir, "library.json"), export);
 
-            if (File.Exists(zipPath)) File.Delete(zipPath);
-            ZipFile.CreateFromDirectory(tempDir, zipPath, CompressionLevel.Optimal, includeBaseDirectory: false);
+            // Atomik yazma: önce geçici zip, sonra hedefin üzerine taşı.
+            var dir = Path.GetDirectoryName(Path.GetFullPath(zipPath));
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            var tmpZip = zipPath + ".tmp";
+            if (File.Exists(tmpZip)) File.Delete(tmpZip);
+            ZipFile.CreateFromDirectory(tempDir, tmpZip, CompressionLevel.Optimal, includeBaseDirectory: false);
+            File.Move(tmpZip, zipPath, overwrite: true);
             return export.Sounds.Count;
         }
         finally
@@ -89,62 +101,55 @@ public class ImportExportService
         }
     }
 
-    /// <summary>Zip'ten içe aktarır; eklenen ses sayısını döner.</summary>
-    public int Import(string zipPath, bool copyToLibrary)
+    /// <summary>
+    /// Zip'ten içe aktarır; eklenen ses sayısını döner.
+    /// Not: dosyalar her zaman kütüphaneye kopyalanır — geçici çıkarma dizini
+    /// işlem sonunda silindiği için copyToLibrary=false güvenli değildir.
+    /// </summary>
+    public int Import(string zipPath, bool copyToLibrary = true)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "kayonez-import-" + Guid.NewGuid().ToString("N")[..8]);
+        var tempDir = Path.Combine(Path.GetTempPath(), "voxora-import-" + Guid.NewGuid().ToString("N")[..8]);
         try
         {
-            // Safe extraction with zip slip protection
             Directory.CreateDirectory(tempDir);
-            using (var archive = ZipFile.OpenRead(zipPath))
-            {
-                foreach (var entry in archive.Entries)
-                {
-                    // Prevent directory traversal
-                    var destinationPath = Path.GetFullPath(Path.Combine(tempDir, entry.FullName));
-                    var tempDirFull = Path.GetFullPath(tempDir);
-                    if (!destinationPath.StartsWith(tempDirFull, StringComparison.OrdinalIgnoreCase))
-                        continue; // skip malicious entry
-                    // Ensure directory exists
-                    var dir = Path.GetDirectoryName(destinationPath);
-                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                    // Extract
-                    entry.ExtractToFile(destinationPath, overwrite: true);
-                }
-            }
+            ExtractSafely(zipPath, tempDir);
 
-            var data = JsonStore.Load<ExportData>(Path.Combine(tempDir, "library.json"));
-            if (data == null) throw new InvalidDataException("Geçersiz yedek dosyası (library.json yok).");
+            var manifestPath = Path.Combine(tempDir, "library.json");
+            var data = JsonStore.Load<ExportData>(manifestPath);
+            if (data == null) throw new InvalidDataException(LocalizationService.T("Import_InvalidBackup"));
 
             // kategorileri taşı (aynı id varsa dokunma)
             foreach (var c in data.Categories)
-                if (_library.Data.Categories.All(x => x.Id != c.Id))
+                if (c != null && _library.Data.Categories.All(x => x.Id != c.Id))
                     _library.Data.Categories.Add(c);
 
+            var knownCategories = _library.Data.Categories.Select(c => c.Id).ToHashSet();
             int added = 0;
             foreach (var es in data.Sounds)
             {
-                // Resolve file path safely
-                var requestedPath = Path.Combine(tempDir, es.File.Replace('/', Path.DirectorySeparatorChar));
-                var resolvedPath = Path.GetFullPath(requestedPath);
-                var tempDirFull = Path.GetFullPath(tempDir);
-                if (!resolvedPath.StartsWith(tempDirFull, StringComparison.OrdinalIgnoreCase))
-                    continue; // path traversal attempt
-                if (!File.Exists(resolvedPath)) continue;
-                if (!SoundFormatSupported(resolvedPath)) continue;
+                if (es == null || string.IsNullOrWhiteSpace(es.File)) continue;
 
-                var item = _library.AddSound(resolvedPath, es.CategoryId, copyToLibrary,
-                    color: es.Color, icon: es.Icon, displayName: es.Name);
-                item.Hotkey = es.HotkeyVk is int vk && vk != 0
+                var resolvedPath = ResolveInside(tempDir, es.File);
+                if (resolvedPath == null) continue; // path traversal / geçersiz
+                if (!File.Exists(resolvedPath)) continue;
+                if (!LibraryService.IsSupportedFormat(resolvedPath)) continue;
+
+                // Geçici dizin silineceği için daima kütüphaneye kopyala.
+                var item = _library.AddSound(resolvedPath, es.CategoryId, copyToLibrary: true,
+                    color: SanitizeColor(es.Color), icon: SanitizeIcon(es.Icon),
+                    displayName: SanitizeName(es.Name));
+                item.CategoryId = es.CategoryId is Guid cid && knownCategories.Contains(cid) ? cid : null;
+                item.Hotkey = es.HotkeyVk is int vk && vk > 0
                     ? new HotkeyGesture { VirtualKey = vk, Modifiers = (HotkeyModifiers)(es.HotkeyMods ?? 0) }
                     : null;
-                item.Volume = es.Volume;
+                item.Volume = Math.Clamp(es.Volume, 0f, 1.5f);
                 item.IsMuted = es.IsMuted;
-                item.Behavior = (PlaybackBehavior)es.Behavior;
+                item.Behavior = Enum.IsDefined(typeof(PlaybackBehavior), es.Behavior)
+                    ? (PlaybackBehavior)es.Behavior
+                    : PlaybackBehavior.Restart;
                 item.HoldToPlay = es.HoldToPlay;
                 item.Favorite = es.Favorite;
-                item.DurationSeconds = es.Duration;
+                item.DurationSeconds = Math.Max(0, es.Duration);
                 added++;
             }
             _library.Save();
@@ -156,9 +161,86 @@ public class ImportExportService
         }
     }
 
-    private static bool SoundFormatSupported(string path)
+    private static void ExtractSafely(string zipPath, string tempDir)
     {
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        return ext is ".mp3" or ".wav" or ".ogg" or ".flac" or ".m4a" or ".aac" or ".wma" or ".opus";
+        if (!File.Exists(zipPath)) throw new FileNotFoundException(zipPath);
+
+        using var archive = ZipFile.OpenRead(zipPath);
+        if (archive.Entries.Count > MaxEntries)
+            throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
+
+        long total = 0;
+        foreach (var entry in archive.Entries)
+        {
+            // Dizin girişleri (adı "/" ile biter) çıkarılamaz; atla.
+            if (string.IsNullOrEmpty(entry.Name)) continue;
+
+            // Unix symlink girişlerini çıkarma (dışarıya işaret edebilir).
+            if (IsSymlink(entry)) continue;
+
+            if (entry.Length < 0 || entry.Length > MaxSingleEntry)
+                throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
+
+            total += entry.Length;
+            if (total > MaxTotalUncompressed)
+                throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
+
+            // library.json manifesti için ayrıca boyut sınırı.
+            if (string.Equals(entry.FullName.Replace('\\', '/'), "library.json", StringComparison.OrdinalIgnoreCase)
+                && entry.Length > MaxLibraryJson)
+                throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
+
+            var destinationPath = ResolveInside(tempDir, entry.FullName);
+            if (destinationPath == null) continue; // zip-slip
+
+            var dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            entry.ExtractToFile(destinationPath, overwrite: true);
+        }
     }
+
+    /// <summary>Göreli yolu güvenli biçimde kök dizin altına çözer; dışarı çıkıyorsa null.</summary>
+    private static string? ResolveInside(string rootDir, string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath)) return null;
+        if (Path.IsPathRooted(relativePath)) return null;
+
+        var root = Path.GetFullPath(rootDir);
+        var rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar)
+            ? root
+            : root + Path.DirectorySeparatorChar;
+
+        string full;
+        try
+        {
+            full = Path.GetFullPath(Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        }
+        catch
+        {
+            return null;
+        }
+
+        // StartsWith(root + separator) → "/tmp/x-evil" gibi kardeş dizinler geçemez.
+        return full.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase) ? full : null;
+    }
+
+    private static bool IsSymlink(ZipArchiveEntry entry)
+    {
+        // Unix modu üst 16 bitte; 0xA000 = symbolic link.
+        var unixMode = (entry.ExternalAttributes >> 16) & 0xF000;
+        return unixMode == 0xA000;
+    }
+
+    private static string SanitizeName(string? name)
+    {
+        var trimmed = (name ?? "").Trim();
+        if (trimmed.Length == 0) return "";
+        return trimmed.Length > 200 ? trimmed[..200] : trimmed;
+    }
+
+    private static string? SanitizeColor(string? color)
+        => string.IsNullOrWhiteSpace(color) || color.Length > 32 ? null : color;
+
+    private static string? SanitizeIcon(string? icon)
+        => string.IsNullOrWhiteSpace(icon) ? null : (icon.Length > 8 ? icon[..8] : icon);
 }

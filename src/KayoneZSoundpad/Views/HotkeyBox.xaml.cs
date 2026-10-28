@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using KayoneZSoundpad.Models;
+using KayoneZSoundpad.Services;
 
 namespace KayoneZSoundpad.Views;
 
@@ -30,7 +31,16 @@ public partial class HotkeyBox : System.Windows.Controls.UserControl
         InitializeComponent();
         UpdateDisplay();
         LostKeyboardFocus += (_, _) => { _pendingModifiers = HotkeyModifiers.None; UpdateDisplay(); };
+        Loaded += (_, _) =>
+        {
+            LocalizationService.LanguageChanged -= OnLanguageChanged;
+            LocalizationService.LanguageChanged += OnLanguageChanged;
+            UpdateDisplay();
+        };
+        Unloaded += (_, _) => LocalizationService.LanguageChanged -= OnLanguageChanged;
     }
+
+    private void OnLanguageChanged() => UpdateDisplay();
 
     protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
     {
@@ -98,12 +108,14 @@ public partial class HotkeyBox : System.Windows.Controls.UserControl
             if (_pendingModifiers.HasFlag(HotkeyModifiers.Alt)) parts.Add("Alt");
             if (_pendingModifiers.HasFlag(HotkeyModifiers.Shift)) parts.Add("Shift");
             if (_pendingModifiers.HasFlag(HotkeyModifiers.Win)) parts.Add("Win");
-            Display.Text = (parts.Count > 0 ? string.Join(" + ", parts) + " + ..." : "...") + " (tuşa bas)";
+            Display.Text = (parts.Count > 0
+                ? string.Join(" + ", parts) + " + " + LocalizationService.T("Hotkey_PendingEllipsis")
+                : LocalizationService.T("Hotkey_PendingEllipsis")) + LocalizationService.T("Hotkey_PendingSuffix");
             Display.Foreground = (System.Windows.Media.Brush)(TryFindResource("Brush.TextSecondary") ?? System.Windows.Media.Brushes.Gray);
         }
         else
         {
-            Display.Text = "Tıkla ve kısayol tuşlarına bas (Esc = temizle)";
+            Display.Text = LocalizationService.T("Hotkey_Hint");
             Display.Foreground = (System.Windows.Media.Brush)(TryFindResource("Brush.TextMuted") ?? System.Windows.Media.Brushes.Gray);
             Display.FontWeight = FontWeights.Normal;
         }

@@ -1,6 +1,8 @@
+using System.IO;
 using System.Windows;
-using System.Windows.Controls;
+using KayoneZSoundpad.Audio;
 using KayoneZSoundpad.Models;
+using KayoneZSoundpad.Services;
 using KayoneZSoundpad.ViewModels;
 
 namespace KayoneZSoundpad.Views;
@@ -18,8 +20,8 @@ public partial class EditSoundDialog : Window
 
         NameBox.Text = sound.Name;
 
-        // Categories: first item = no category
-        var list = new List<object> { new NameOnly("Kategori yok", null) };
+        // Kategoriler: ilk öğe = kategori yok
+        var list = new List<object> { new NameOnly(LocalizationService.T("Category_NoCategory"), null) };
         foreach (var c in vm.Library.Data.Categories.OrderBy(c => c.Order))
             list.Add(new NameOnly(c.Name, c.Id));
         CategoryCombo.ItemsSource = list;
@@ -31,7 +33,7 @@ public partial class EditSoundDialog : Window
         FilePathBox.Text = sound.FilePath ?? "";
 
         HotkeyBox.Value = sound.Hotkey?.Clone();
-        VolumeSlider.Value = sound.Volume;
+        VolumeSlider.Value = Math.Clamp(sound.Volume, 0f, 1.5f);
 
         FavoriteCheck.IsChecked = sound.Favorite;
         MutedCheck.IsChecked = sound.IsMuted;
@@ -43,13 +45,19 @@ public partial class EditSoundDialog : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "Ses Dosyaları|*.mp3;*.wav;*.ogg;*.flac|Tüm Dosyalar|*.*",
-            Title = "Ses Dosyası Seç"
+            Filter = LocalizationService.T("Dialog_SoundFilesFilter"),
+            Title = LocalizationService.T("Dialog_SelectSoundTitle")
         };
-        if (dlg.ShowDialog() == true)
+        if (dlg.ShowDialog() != true) return;
+
+        if (!File.Exists(dlg.FileName) || !LibraryService.IsSupportedFormat(dlg.FileName))
         {
-            FilePathBox.Text = dlg.FileName;
+            System.Windows.MessageBox.Show(LocalizationService.T("Edit_FileInvalid"), "Voxora",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
+
+        FilePathBox.Text = dlg.FileName;
     }
 
     private void ClearHotkey_Click(object sender, RoutedEventArgs e)
@@ -62,14 +70,44 @@ public partial class EditSoundDialog : Window
         var name = NameBox.Text.Trim();
         if (name.Length == 0) { NameBox.Focus(); return; }
 
+        if (!File.Exists(FilePathBox.Text) || !LibraryService.IsSupportedFormat(FilePathBox.Text))
+        {
+            System.Windows.MessageBox.Show(LocalizationService.T("Edit_FileInvalid"), "Voxora",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Kısayol çakışması varsa kullanıcıya sor.
+        var gesture = HotkeyBox.Value;
+        if (gesture?.IsValid == true)
+        {
+            var conflict = _vm.CheckConflict(gesture, _sound.Id);
+            if (conflict != null &&
+                System.Windows.MessageBox.Show(conflict + "\n\n" + LocalizationService.T("Common_Save") + "?",
+                    LocalizationService.T("Settings_HotkeyConflictTitle"),
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                HotkeyBox.Focus();
+                return;
+            }
+        }
+
         _sound.Name = name;
         _sound.CategoryId = (CategoryCombo.SelectedItem as NameOnly)?.Id;
-        _sound.Icon = string.IsNullOrWhiteSpace(IconBox.Text) ? null : IconBox.Text;
+        _sound.Icon = string.IsNullOrWhiteSpace(IconBox.Text) ? null : IconBox.Text.Trim();
         _sound.FilePath = FilePathBox.Text;
-        _sound.Volume = (float)VolumeSlider.Value;
+        _sound.Volume = Math.Clamp((float)VolumeSlider.Value, 0f, 1.5f);
         _sound.Favorite = FavoriteCheck.IsChecked == true;
         _sound.IsMuted = MutedCheck.IsChecked == true;
-        _sound.Hotkey = HotkeyBox.Value;
+        _sound.Hotkey = gesture;
+
+        // Süre değişen dosyaya göre güncellenir (kartta doğru gösterim için).
+        try
+        {
+            var duration = SoundDecoder.GetDuration(_sound.FilePath);
+            if (duration > 0) _sound.DurationSeconds = duration;
+        }
+        catch { /* süre okunamazsa eski değer kalır */ }
 
         DialogResult = true;
     }

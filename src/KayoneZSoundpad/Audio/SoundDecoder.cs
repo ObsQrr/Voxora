@@ -62,15 +62,30 @@ public static class SoundDecoder
     /// <summary>Format uygun NAudio okuyucusunu açar. Desteklenmeyen/bozuk dosyada hata fırlatır.</summary>
     public static ISampleProvider OpenFile(string path)
     {
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        ISampleProvider source = ext switch
+        var reader = CreateReader(path);
+        try
         {
-            ".wav" => new WaveFileReader(path).ToSampleProvider(),
-            ".mp3" => new Mp3FileReader(path).ToSampleProvider(),
-            ".ogg" => new NAudio.Vorbis.VorbisWaveReader(path).ToSampleProvider(),
-            ".flac" or ".m4a" or ".aac" or ".wma" or ".opus" or _ => new MediaFoundationReader(path).ToSampleProvider()
+            var formatted = ToEngineFormat(reader.ToSampleProvider());
+            // Alt akış (dosya tutamacı) çalma bitince serbest bırakılabilmeli.
+            return new OwnedSampleProvider(formatted, reader);
+        }
+        catch
+        {
+            reader.Dispose();
+            throw;
+        }
+    }
+
+    private static WaveStream CreateReader(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".wav" => new WaveFileReader(path),
+            ".mp3" => new Mp3FileReader(path),
+            ".ogg" => new NAudio.Vorbis.VorbisWaveReader(path),
+            _ => new MediaFoundationReader(path)
         };
-        return ToEngineFormat(source);
     }
 
     /// <summary>Kaynağı 48 kHz / 2 kanal float'a yeniden örnekler.</summary>
@@ -111,24 +126,61 @@ public static class SoundDecoder
     public static CachedSound DecodeToCache(string path, long maxBytes)
     {
         var reader = OpenFile(path);
-        var chunks = new List<float[]>();
-        long totalFloats = 0;
-        var buf = new float[48000 * 2 * 4]; // ~1 sn
-        int read;
-        while ((read = reader.Read(buf, 0, buf.Length)) > 0)
+        try
         {
-            var copy = new float[read];
-            Array.Copy(buf, copy, read);
-            chunks.Add(copy);
-            totalFloats += read;
-            if (totalFloats * sizeof(float) > maxBytes)
-                throw new CacheTooLargeException();
+            var chunks = new List<float[]>();
+            long totalFloats = 0;
+            var buf = new float[48000 * 2 * 4]; // ~1 sn
+            int read;
+            while ((read = reader.Read(buf, 0, buf.Length)) > 0)
+            {
+                var copy = new float[read];
+                Array.Copy(buf, copy, read);
+                chunks.Add(copy);
+                totalFloats += read;
+                if (totalFloats * sizeof(float) > maxBytes)
+                    throw new CacheTooLargeException();
+            }
+            var samples = new float[totalFloats];
+            int pos = 0;
+            foreach (var c in chunks) { Array.Copy(c, 0, samples, pos, c.Length); pos += c.Length; }
+            double duration = totalFloats / (double)(CachedSound.Channels * CachedSound.SampleRate);
+            return new CachedSound(samples, duration);
         }
-        var samples = new float[totalFloats];
-        int pos = 0;
-        foreach (var c in chunks) { Array.Copy(c, 0, samples, pos, c.Length); pos += c.Length; }
-        double duration = totalFloats / (double)(CachedSound.Channels * CachedSound.SampleRate);
-        return new CachedSound(samples, duration);
+        finally
+        {
+            (reader as IDisposable)?.Dispose();
+        }
+    }
+}
+
+/// <summary>
+/// Bir örnek sağlayıcıyı sarar ve altındaki dosya/akış kaynağını serbest bırakır.
+/// PlaybackManager, akış (streaming) çalma bitince veya durdurulunca bunu dispose eder.
+/// </summary>
+public class OwnedSampleProvider : ISampleProvider, IDisposable
+{
+    private readonly ISampleProvider _inner;
+    private readonly IDisposable _owner;
+    private bool _disposed;
+
+    public OwnedSampleProvider(ISampleProvider inner, IDisposable owner)
+    {
+        _inner = inner;
+        _owner = owner;
+    }
+
+    public WaveFormat WaveFormat => _inner.WaveFormat;
+
+    public int Read(float[] buffer, int offset, int count)
+        => _disposed ? 0 : _inner.Read(buffer, offset, count);
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        try { (_inner as IDisposable)?.Dispose(); } catch { }
+        try { _owner.Dispose(); } catch { }
     }
 }
 

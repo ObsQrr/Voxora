@@ -24,6 +24,9 @@ public class SettingsService
         s.DuckFactor = Math.Clamp(s.DuckFactor, 0f, 1f);
         s.MaxCacheMb = Math.Clamp(s.MaxCacheMb, 32, 2048);
         s.EngineLatencyMs = Math.Clamp(s.EngineLatencyMs, 20, 200);
+        // Bilinmeyen tema → varsayılan açık tema; bilinmeyen dil → varsayılan Türkçe.
+        if (s.Theme is not ("light" or "dark")) s.Theme = "light";
+        s.Language = LocalizationService.Normalize(s.Language);
     }
 
     public void Save()

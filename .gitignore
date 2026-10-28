@@ -38,3 +38,26 @@ installer/Setup.exe
 # OS
 Thumbs.db
 .DS_Store
+
+# User audio library / personal sound effects
+# Never commit personal MP3/WAV files or the local library database.
+Sounds/
+**/Sounds/
+library.json
+settings.json
+*.corrupt
+*.tmp
+
+# Block personal audio formats anywhere in the repo (test fixtures are
+# explicitly re-included below because they are synthetic, generated tones).
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.m4a
+*.aac
+*.wma
+*.opus
+!tests/KayoneZSoundpad.Tests/TestAssets/*.mp3
+!tests/KayoneZSoundpad.Tests/TestAssets/*.ogg
+!tests/KayoneZSoundpad.Tests/TestAssets/*.flac

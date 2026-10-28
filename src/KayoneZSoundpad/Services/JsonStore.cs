@@ -7,6 +7,9 @@ namespace KayoneZSoundpad.Services;
 /// <summary>JSON dosya kalıcılığı: atomik yazma (tmp + replace), bozuk dosyada null döner.</summary>
 public static class JsonStore
 {
+    /// <summary>Tek bir JSON belgesi için üst sınır (bellek/DoS koruması).</summary>
+    public const long MaxDocumentBytes = 32L * 1024 * 1024;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
@@ -27,6 +30,7 @@ public static class JsonStore
         try
         {
             if (!File.Exists(path)) return null;
+            if (new FileInfo(path).Length > MaxDocumentBytes) return null;
             using var fs = File.OpenRead(path);
             return JsonSerializer.Deserialize<T>(fs, Options);
         }

@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:KayoneZSoundpad.Views"
-        Title="Sesi Düzenle" Width="560" Height="520"
+        Title="{DynamicResource Edit_Title}" Width="560" Height="540"
         WindowStartupLocation="CenterOwner" Background="{DynamicResource Brush.Bg}"
         WindowStyle="ToolWindow" ShowInTaskbar="False"
         FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13">
@@ -11,9 +11,10 @@
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Panel}"
                 BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="16,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="İptal" IsCancel="True" MinWidth="92" Padding="14,8"/>
-                <Button Content="Kaydet" MinWidth="92" Margin="10,0,0,0" Style="{StaticResource AccentButton}"
-                        Click="Save_Click" Padding="14,8" AutomationProperties.Name="Kaydet"/>
+                <Button Content="{DynamicResource Common_Cancel}" IsCancel="True" MinWidth="92" Padding="14,8"
+                        AutomationProperties.Name="{DynamicResource Common_Cancel}"/>
+                <Button Content="{DynamicResource Common_Save}" MinWidth="92" Margin="10,0,0,0" Style="{StaticResource AccentButton}"
+                        Click="Save_Click" Padding="14,8" AutomationProperties.Name="{DynamicResource Common_Save}"/>
             </StackPanel>
         </Border>
 
@@ -22,71 +23,68 @@
 
                 <!-- İsim -->
                 <StackPanel Margin="0,0,0,18">
-                    <TextBlock Text="İSİM" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
-                    <TextBox x:Name="NameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                             AutomationProperties.Name="Ses adı"/>
+                    <TextBlock Text="{DynamicResource Edit_Name}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <TextBox x:Name="NameBox" MaxLength="200"
+                             AutomationProperties.Name="{DynamicResource Edit_NameAutomation}"/>
                 </StackPanel>
 
                 <!-- Kategori -->
                 <StackPanel Margin="0,0,0,18">
-                    <TextBlock Text="KATEGORİ" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="CategoryCombo" ItemsSource="{Binding Categories}"
-                              SelectedItem="{Binding Category}"
-                              DisplayMemberPath="Name"
-                              AutomationProperties.Name="Kategori"/>
+                    <TextBlock Text="{DynamicResource Edit_Category}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <ComboBox x:Name="CategoryCombo" DisplayMemberPath="Name"
+                              AutomationProperties.Name="{DynamicResource Edit_CategoryAutomation}"/>
                 </StackPanel>
 
                 <!-- İkon -->
                 <StackPanel Margin="0,0,0,18">
-                    <TextBlock Text="İKON" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
-                    <TextBox x:Name="IconBox" Text="{Binding Icon, UpdateSourceTrigger=PropertyChanged}"
-                             MaxLength="2" FontSize="18" Padding="12,6"
-                             AutomationProperties.Name="Ses ikonu (emoji)"/>
-                    <TextBlock Text="Emoji veya kısa metin (örn: 🎵 💥 ⚡)" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+                    <TextBlock Text="{DynamicResource Edit_Icon}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <TextBox x:Name="IconBox" MaxLength="8" FontSize="18" Padding="12,6"
+                             AutomationProperties.Name="{DynamicResource Edit_IconAutomation}"/>
+                    <TextBlock Text="{DynamicResource Edit_IconHint}" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
                 </StackPanel>
 
                 <!-- Ses Dosyası -->
                 <StackPanel Margin="0,0,0,18">
-                    <TextBlock Text="SES DOSYASI" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <TextBlock Text="{DynamicResource Edit_File}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="FilePathBox" Text="{Binding FilePath}" IsReadOnly="True"
-                                 AutomationProperties.Name="Ses dosyası yolu"/>
-                        <Button Grid.Column="1" Content="Değiştir" Margin="10,0,0,0" Padding="12,8"
-                                Click="ChangeFile_Click" AutomationProperties.Name="Ses dosyasını değiştir"/>
+                        <TextBox x:Name="FilePathBox" IsReadOnly="True"
+                                 AutomationProperties.Name="{DynamicResource Edit_FileAutomation}"/>
+                        <Button Grid.Column="1" Content="{DynamicResource Edit_Change}" Margin="10,0,0,0" Padding="12,8"
+                                Click="ChangeFile_Click" AutomationProperties.Name="{DynamicResource Edit_ChangeAutomation}"/>
                     </Grid>
                 </StackPanel>
 
                 <!-- Kısayol -->
                 <StackPanel Margin="0,0,0,18">
-                    <TextBlock Text="KISAYOL" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <TextBlock Text="{DynamicResource Edit_Hotkey}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
                     <StackPanel Orientation="Horizontal">
                         <views:HotkeyBox x:Name="HotkeyBox" Width="300"
-                                         AutomationProperties.Name="Oynatma kısayolu"/>
-                        <Button Content="Temizle" Margin="10,0,0,0" Padding="12,8"
-                                Click="ClearHotkey_Click" AutomationProperties.Name="Kısayolu temizle"/>
+                                         AutomationProperties.Name="{DynamicResource Edit_HotkeyAutomation}"/>
+                        <Button Content="{DynamicResource Edit_Clear}" Margin="10,0,0,0" Padding="12,8"
+                                Click="ClearHotkey_Click" AutomationProperties.Name="{DynamicResource Edit_ClearAutomation}"/>
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Ses Seviyesi -->
                 <StackPanel Margin="0,0,0,18">
-                    <TextBlock Text="SES SEVİYESİ" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
-                    <Slider x:Name="VolumeSlider" Minimum="0" Maximum="1.5" Value="{Binding Volume, Mode=TwoWay}"
+                    <TextBlock Text="{DynamicResource Edit_Volume}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <Slider x:Name="VolumeSlider" Minimum="0" Maximum="1.5"
                             SmallChange="0.05" LargeChange="0.1"
-                            AutomationProperties.Name="Ses seviyesi"/>
+                            AutomationProperties.Name="{DynamicResource Edit_VolumeAutomation}"/>
                 </StackPanel>
 
                 <!-- Seçenekler -->
                 <StackPanel Margin="0,0,0,18">
-                    <CheckBox x:Name="FavoriteCheck" Content="Favorilere ekle (listede öne çıkar)"
-                              IsChecked="{Binding Favorite}" Margin="0,0,0,6"
-                              AutomationProperties.Name="Favori"/>
-                    <CheckBox x:Name="MutedCheck" Content="Başlangıçta sessiz"
-                              IsChecked="{Binding IsMuted}" Margin="0,0,0,6"
-                              AutomationProperties.Name="Başlangıçta sessiz"/>
+                    <CheckBox x:Name="FavoriteCheck" Content="{DynamicResource Edit_Favorite}"
+                              Margin="0,0,0,6"
+                              AutomationProperties.Name="{DynamicResource Edit_FavoriteAutomation}"/>
+                    <CheckBox x:Name="MutedCheck" Content="{DynamicResource Edit_Muted}"
+                              Margin="0,0,0,6"
+                              AutomationProperties.Name="{DynamicResource Edit_MutedAutomation}"/>
                 </StackPanel>
 
             </StackPanel>

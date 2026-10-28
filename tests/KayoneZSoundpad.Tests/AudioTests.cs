@@ -35,6 +35,57 @@ public class AudioTests : IDisposable
     }
 
     [Fact]
+    public void OpenFile_IsDisposable_AndCanBeDisposedTwice()
+    {
+        var path = WriteWav("owned.wav");
+        var provider = SoundDecoder.OpenFile(path);
+        var disposable = Assert.IsAssignableFrom<IDisposable>(provider);
+
+        disposable.Dispose();
+        disposable.Dispose(); // idempotent olmalı
+
+        var buffer = new float[64];
+        Assert.Equal(0, provider.Read(buffer, 0, buffer.Length));
+    }
+
+    [Fact]
+    public void OwnedSampleProvider_DisposesInnerAndOwnerExactlyOnce()
+    {
+        var inner = new TrackingProvider();
+        var owner = new TrackingDisposable();
+
+        var owned = new OwnedSampleProvider(inner, owner);
+        Assert.Same(inner.WaveFormat, owned.WaveFormat);
+
+        owned.Dispose();
+        owned.Dispose();
+
+        Assert.Equal(1, inner.DisposeCount);
+        Assert.Equal(1, owner.DisposeCount);
+        Assert.Equal(0, owned.Read(new float[16], 0, 16));
+    }
+
+    private sealed class TrackingProvider : NAudio.Wave.ISampleProvider, IDisposable
+    {
+        public int DisposeCount { get; private set; }
+        public NAudio.Wave.WaveFormat WaveFormat { get; } = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            Array.Clear(buffer, offset, count);
+            return count;
+        }
+
+        public void Dispose() => DisposeCount++;
+    }
+
+    private sealed class TrackingDisposable : IDisposable
+    {
+        public int DisposeCount { get; private set; }
+        public void Dispose() => DisposeCount++;
+    }
+
+    [Fact]
     public void Decoder_Wav_Cache_OutputFormat_Is48kStereo()
     {
         var path = WriteWav("test.wav", 44100, 1);

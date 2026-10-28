@@ -2,7 +2,7 @@
 ; Derleme: ISCC.exe installer\Voxora.iss  →  dist\Voxora-Setup.exe
 
 #define MyAppName "Voxora"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Voxora"
 #define MyAppExeName "Voxora.exe"
 
@@ -29,16 +29,26 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+turkish.VoxoraAdditionalIcons=Ek seçenekler
+english.VoxoraAdditionalIcons=Additional options
+turkish.AutoStartTask=Windows açılışında başlat
+english.AutoStartTask=Start with Windows
+turkish.UninstallShortcut=Voxora Kaldır
+english.UninstallShortcut=Uninstall Voxora
+turkish.LaunchApp=Voxora'yı şimdi başlat
+english.LaunchApp=Launch Voxora now
+
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "autostart"; Description: "Windows açılışında başlat"; GroupDescription: "Ek seçenekler"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:VoxoraAdditionalIcons}"
+Name: "autostart"; Description: "{cm:AutoStartTask}"; GroupDescription: "{cm:VoxoraAdditionalIcons}"; Flags: unchecked
 
 [Files]
 Source: "..\dist\Voxora\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\{#MyAppName} Kaldır"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:UninstallShortcut}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
@@ -46,7 +56,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Voxora"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName}'ı şimdi başlat"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; Kullanıcı verileri (%APPDATA%\KayoneZSoundpad) kaldırmada SİLİNMEZ — bilinçli karar.

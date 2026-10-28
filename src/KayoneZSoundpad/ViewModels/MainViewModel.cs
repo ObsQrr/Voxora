@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
-using System.Windows;
 using KayoneZSoundpad.Audio;
 using KayoneZSoundpad.Hotkeys;
 using KayoneZSoundpad.Models;
@@ -12,18 +11,18 @@ namespace KayoneZSoundpad.ViewModels;
 /// <summary>Kenar çubuğundaki kategori seçenekleri (Tümü / Favoriler / gerçek kategoriler).</summary>
 public class CategoryEntry
 {
-    public static readonly CategoryEntry All = new() { Name = "Tüm Sesler", Icon = "🎧", Id = null };
-    public static readonly CategoryEntry Favorites = new() { Name = "Favoriler", Icon = "⭐", Id = Guid.Empty };
-
     public string Name { get; init; } = "";
     public string Icon { get; init; } = "📁";
     public Guid? Id { get; init; }  // null=Tümü, Guid.Empty=Favoriler, gerçek id
     public int Count { get; set; }
 
+    public bool IsAll => Id is null;
+    public bool IsFavorites => Id == Guid.Empty;
+
     public override string ToString() => Name;
 }
 
-public class MainViewModel : INotifyPropertyChanged
+public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly SettingsService _settingsService;
     private readonly LibraryService _library;
@@ -31,6 +30,12 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly PlaybackManager _playback;
     private readonly GlobalHotkeyService _hotkeys;
     private readonly DeviceService _devices;
+    private readonly ImportExportService _importExport;
+    private readonly Action<float, float> _onLevels;
+    private readonly Action<string> _onEngineError;
+    private readonly Action<string> _onEngineInfo;
+    private readonly Action _onDevicesChanged;
+    private bool _disposed;
     public static readonly Guid StopAllActionId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
     public ObservableCollection<SoundCardViewModel> Sounds { get; } = new();
@@ -38,11 +43,17 @@ public class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<DeviceEntry> RenderDevices { get; } = new();
     public ObservableCollection<DeviceEntry> CaptureDevices { get; } = new();
 
-    private CategoryEntry _selectedCategory = CategoryEntry.All;
-    public CategoryEntry SelectedCategory
+    private CategoryEntry? _selectedCategory;
+    public CategoryEntry? SelectedCategory
     {
         get => _selectedCategory;
-        set { _selectedCategory = value; OnPropertyChanged(nameof(SelectedCategory)); ApplyFilter(); SaveLastCategory(); }
+        set
+        {
+            _selectedCategory = value;
+            OnPropertyChanged(nameof(SelectedCategory));
+            ApplyFilter();
+            SaveLastCategory();
+        }
     }
 
     private string _searchText = "";
@@ -76,6 +87,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public event Action<SoundItem>? EditSoundRequested;
     public event Action? SettingsRequested;
+    public event Action? CableGuideRequested;
     public event Action<string>? NotifyInfo;
     public event Action<string>? NotifyError;
 
@@ -88,18 +100,38 @@ public class MainViewModel : INotifyPropertyChanged
         _playback = playback;
         _hotkeys = hotkeys;
         _devices = devices;
+        _importExport = new ImportExportService(library, settingsService);
+        _selectedCategory = new CategoryEntry { Name = LocalizationService.T("Category_All"), Icon = "🎧", Id = null };
 
-        _engine.Levels += (fx, outp) => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => { FxPeak = fx; OutPeak = outp; });
-        _engine.EngineError += msg => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => NotifyError?.Invoke(msg));
-        _engine.EngineInfo += msg => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => NotifyInfo?.Invoke(msg));
-        _devices.DevicesChanged += () => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        _onLevels = (fx, outp) => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            RefreshDevices();
-            NotifyInfo?.Invoke("Ses aygıtları değişti.");
+            if (_disposed) return;
+            FxPeak = fx;
+            OutPeak = outp;
         });
+        _onEngineError = msg => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (!_disposed) NotifyError?.Invoke(msg);
+        });
+        _onEngineInfo = msg => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (!_disposed) NotifyInfo?.Invoke(msg);
+        });
+        _onDevicesChanged = () => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed) return;
+            RefreshDevices();
+            NotifyInfo?.Invoke(LocalizationService.T("Notify_DevicesChanged"));
+        });
+
+        _engine.Levels += _onLevels;
+        _engine.EngineError += _onEngineError;
+        _engine.EngineInfo += _onEngineInfo;
+        _devices.DevicesChanged += _onDevicesChanged;
 
         _hotkeys.HotkeyPressed += OnHotkeyPressed;
         _hotkeys.HotkeyReleased += OnHotkeyReleased;
+        LocalizationService.LanguageChanged += OnLanguageChanged;
 
         LoadSounds();
         RefreshDevices();
@@ -117,10 +149,11 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void LoadSounds()
     {
+        foreach (var old in Sounds) old.Dispose();
         Sounds.Clear();
         foreach (var s in _library.Data.Sounds.OrderBy(s => s.Order))
         {
-            var card = new SoundCardViewModel(s, _playback);
+            var card = new SoundCardViewModel(s, _playback, _library.ScheduleSave);
             Sounds.Add(card);
         }
         RebuildCategories();
@@ -135,7 +168,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public void AddSoundToUI(SoundItem sound)
     {
-        Sounds.Add(new SoundCardViewModel(sound, _playback));
+        Sounds.Add(new SoundCardViewModel(sound, _playback, _library.ScheduleSave));
         RebuildCategories();
         ApplyFilter();
     }
@@ -143,45 +176,52 @@ public class MainViewModel : INotifyPropertyChanged
     public void RemoveSoundFromUI(Guid id)
     {
         var card = Sounds.FirstOrDefault(s => s.Id == id);
-        if (card != null) Sounds.Remove(card);
-        _playback.Stop(card?.Sound!);
+        if (card != null)
+        {
+            _playback.Stop(card.Sound);
+            _playback.EvictCache(id);
+            Sounds.Remove(card);
+            card.Dispose();
+        }
         RebuildCategories();
         ApplyFilter();
     }
 
     public void RebuildCategories()
     {
-        var sel = _selectedCategory;
+        var selId = _selectedCategory?.Id;
         Categories.Clear();
-        Categories.Add(CategoryEntry.All);
-        Categories.Add(CategoryEntry.Favorites);
+        Categories.Add(new CategoryEntry { Name = LocalizationService.T("Category_All"), Icon = "🎧", Id = null });
+        Categories.Add(new CategoryEntry { Name = LocalizationService.T("Category_Favorites"), Icon = "⭐", Id = Guid.Empty });
         foreach (var c in _library.Data.Categories.OrderBy(c => c.Order))
             Categories.Add(new CategoryEntry { Name = c.Name, Icon = string.IsNullOrEmpty(c.Icon) ? "📁" : c.Icon, Id = c.Id });
 
         foreach (var e in Categories)
         {
-            e.Count = e == CategoryEntry.All ? Sounds.Count
-                : e == CategoryEntry.Favorites ? Sounds.Count(s => s.Favorite)
+            e.Count = e.IsAll ? Sounds.Count
+                : e.IsFavorites ? Sounds.Count(s => s.Favorite)
                 : Sounds.Count(s => s.Sound.CategoryId == e.Id);
         }
         // seçili kategori silinmiş olabilir
-        var again = Categories.FirstOrDefault(c => Equals(c.Id, sel?.Id));
-        if (again != null) { _selectedCategory = again; OnPropertyChanged(nameof(SelectedCategory)); }
+        var again = Categories.FirstOrDefault(c => Equals(c.Id, selId));
+        _selectedCategory = again ?? Categories[0];
+        OnPropertyChanged(nameof(SelectedCategory));
     }
 
     private void ApplyFilter()
     {
         var view = System.Windows.Data.CollectionViewSource.GetDefaultView(Sounds);
         string q = SearchText?.Trim() ?? "";
+        var sel = SelectedCategory;
         view.Filter = o =>
         {
             if (o is not SoundCardViewModel c) return false;
             if (!string.IsNullOrEmpty(q) &&
                 c.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0) return false;
 
-            if (SelectedCategory == CategoryEntry.All) return true;
-            if (SelectedCategory == CategoryEntry.Favorites) return c.Favorite;
-            return c.Sound.CategoryId == SelectedCategory.Id;
+            if (sel == null || sel.IsAll) return true;
+            if (sel.IsFavorites) return c.Favorite;
+            return c.Sound.CategoryId == sel.Id;
         };
         FilterApplied?.Invoke();
         SaveLastCategory();
@@ -207,6 +247,14 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     public SoundCardViewModel? GetCard(Guid id) => Sounds.FirstOrDefault(s => s.Id == id);
+
+    private void OnLanguageChanged()
+    {
+        RebuildCategories();
+        RefreshDevices();
+        foreach (var c in Sounds) c.RefreshAll();
+        OnPropertyChanged(nameof(CableStatusText));
+    }
 
     // ------------------------------------------------------------ kısayollar
 
@@ -258,14 +306,14 @@ public class MainViewModel : INotifyPropertyChanged
         if (Settings.StopAllHotkey?.IsValid == true)
         {
             _hotkeys.Register(Settings.StopAllHotkey, StopAllActionId);
-            seen[Settings.StopAllHotkey] = "Tüm sesleri durdur";
+            seen[Settings.StopAllHotkey] = LocalizationService.T("Hotkey_StopAllOwner");
         }
 
         foreach (var s in _library.Data.Sounds)
         {
             if (s.Hotkey?.IsValid != true) continue;
             if (seen.TryGetValue(s.Hotkey, out var owner))
-                conflicts.Add($"⚠ \"{s.Hotkey}\" kısayolu hem \"{owner}\" hem \"{s.Name}\" için atanmış!");
+                conflicts.Add(LocalizationService.T("Hotkey_ConflictBoth", s.Hotkey, owner, s.Name));
             else
                 seen[s.Hotkey] = s.Name;
             _hotkeys.Register(s.Hotkey, s.Id);
@@ -281,9 +329,9 @@ public class MainViewModel : INotifyPropertyChanged
     {
         if (gesture?.IsValid != true) return null;
         if (Settings.StopAllHotkey?.Equals(gesture) == true)
-            return $"\"{gesture}\" kısayolu \"Tüm sesleri durdur\" için atanmış.";
+            return LocalizationService.T("Hotkey_AssignedToStopAll", gesture);
         var other = _library.Data.Sounds.FirstOrDefault(s => s.Id != ownerSoundId && s.Hotkey?.Equals(gesture) == true);
-        return other != null ? $"\"{gesture}\" kısayolu \"{other.Name}\" için atanmış." : null;
+        return other != null ? LocalizationService.T("Hotkey_AssignedToSound", gesture, other.Name) : null;
     }
 
     // ------------------------------------------------------------ aygıtlar
@@ -308,10 +356,8 @@ public class MainViewModel : INotifyPropertyChanged
                              renders.Any(d => d.Id == Settings.OutputDeviceId && d.IsCable);
 
         CableStatusText = (cableIn != null && cableOut != null)
-            ? (routingActive
-                ? "✓ Voxora sanal aygıtları bağlı — efektler mikrofonuna gidiyor"
-                : "⚠ Voxora sanal aygıtları kurulu ama çıkış bağlı değil (tıkla)")
-            : "Voxora sanal aygıtları bulunamadı (rehber için tıkla)";
+            ? (routingActive ? LocalizationService.T("Cable_Active") : LocalizationService.T("Cable_InstalledNotRouted"))
+            : LocalizationService.T("Cable_Missing");
 
         ApplyEngineConfig();
     }
@@ -331,11 +377,16 @@ public class MainViewModel : INotifyPropertyChanged
             Settings.EngineLatencyMs);
     }
 
+    // Not: ComboBox'ta SelectedValue iki yönlü bağlı olduğu için Settings.* zaten
+    // seçim anında değişmiş olur. Bu yüzden "değer aynıysa çık" erken dönüşü
+    // kullanılmaz; aksi halde kaydetme ve motoru uygulama adımı atlanıyordu.
     public void SetOutputDevice(DeviceEntry? d)
     {
         Settings.OutputDeviceId = d?.Id;
         _settingsService.Save();
         ApplyEngineConfig();
+        OnPropertyChanged(nameof(CableStatusText));
+        OnPropertyChanged(nameof(IsCableRoutingActive));
     }
 
     public void SetMicDevice(DeviceEntry? d)
@@ -371,7 +422,7 @@ public class MainViewModel : INotifyPropertyChanged
         var currentMic = CaptureDevices.FirstOrDefault(d => d.Id == Settings.MicDeviceId);
         if (currentMic == null || currentMic.IsCable)
         {
-            var realMic = CaptureDevices.FirstOrDefault(d => !d.IsCable && !d.Name.Contains("Steam Streaming"))
+            var realMic = CaptureDevices.FirstOrDefault(d => !d.IsCable && !d.OriginalName.Contains("Steam Streaming"))
                           ?? CaptureDevices.FirstOrDefault(d => !d.IsCable);
             if (realMic != null) Settings.MicDeviceId = realMic.Id;
         }
@@ -412,8 +463,16 @@ public class MainViewModel : INotifyPropertyChanged
 
     // ------------------------------------------------------------ komutlar
 
-    public RelayCommand AddFilesCommand => new(files => AddFiles(files as string[] ?? Array.Empty<string>()));
-    public RelayCommand AddFolderCommand => new(folder => AddFolder(folder as string));
+    public RelayCommand AddFilesCommand => new(p =>
+    {
+        if (p is string[] files && files.Length > 0) AddFiles(files);
+        else AddFilesRequested?.Invoke();
+    });
+    public RelayCommand AddFolderCommand => new(p =>
+    {
+        if (p is string folder && !string.IsNullOrWhiteSpace(folder)) AddFolder(folder);
+        else AddFolderRequested?.Invoke();
+    });
     public RelayCommand ImportLibraryCommand => new(path => ImportLibrary(path as string));
     public RelayCommand ExportLibraryCommand => new(path => ExportLibrary(path as string));
     public RelayCommand StopAllCommand => new(_ =>
@@ -445,11 +504,12 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _library.RemoveSound(c.Id);
             RemoveSoundFromUI(c.Id);
+            RegisterAllHotkeys();
         }
     });
     public RelayCommand OpenSettingsCommand => new(_ => SettingsRequested?.Invoke());
-    public RelayCommand OpenCableGuideCommand => new(_ => NotifyInfo?.Invoke("Ayarlar → Sanal Mikrofon rehberine bakın."));
-    public RelayCommand AddCategoryCommand => new(_ => RequestAddCategory());
+    public RelayCommand OpenCableGuideCommand => new(_ => CableGuideRequested?.Invoke());
+    public RelayCommand AddCategoryCommand => new(_ => AddCategoryRequested?.Invoke());
     public RelayCommand ToggleMuteCommand => new(p =>
     {
         if (p is SoundCardViewModel c)
@@ -464,23 +524,36 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _library.RemoveCategory(id);
             RebuildCategories();
-            SelectedCategory = CategoryEntry.All;
+            SelectedCategory = Categories[0];
         }
     });
 
-    private void RequestAddFiles() => AddFilesRequested?.Invoke();
-    private void RequestAddFolder() => AddFolderRequested?.Invoke();
-    private void RequestAddCategory() => AddCategoryRequested?.Invoke();
+    /// <summary>Yeni kategori oluşturur (dialog'dan çağrılır).</summary>
+    public void AddCategory(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        _library.AddCategory(name.Trim());
+        RebuildCategories();
+    }
+
+    /// <summary>
+    /// Yeni sesin atanacağı kategori. "Tüm Sesler" ve "Favoriler" gerçek bir
+    /// kategori değildir; ikisinde de yeni ses kategorisiz eklenir.
+    /// </summary>
+    private Guid? TargetCategoryId =>
+        SelectedCategory is { IsAll: false, IsFavorites: false } ? SelectedCategory.Id : null;
 
     public void AddFiles(string[] paths)
     {
         foreach (var p in paths)
         {
             if (!File.Exists(p)) continue;
-            try { _library.AddSound(p, SelectedCategory?.Id, Settings.CopyOnImport); }
-            catch { }
+            if (!LibraryService.IsSupportedFormat(p)) continue;
+            try { _library.AddSound(p, TargetCategoryId, Settings.CopyOnImport); }
+            catch (Exception ex) { NotifyError?.Invoke(LocalizationService.T("Notify_AddFailed", ex.Message)); }
         }
         ReloadSounds();
+        RegisterAllHotkeys();
     }
 
     public void AddFolder(string? path)
@@ -490,24 +563,41 @@ public class MainViewModel : INotifyPropertyChanged
             .Where(f => LibraryService.IsSupportedFormat(f));
         foreach (var f in files)
         {
-            try { _library.AddSound(f, SelectedCategory?.Id, Settings.CopyOnImport); }
-            catch { }
+            try { _library.AddSound(f, TargetCategoryId, Settings.CopyOnImport); }
+            catch (Exception ex) { NotifyError?.Invoke(LocalizationService.T("Notify_AddFailed", ex.Message)); }
         }
         ReloadSounds();
+        RegisterAllHotkeys();
     }
 
     public void ImportLibrary(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
-        // TODO: Implement zip import
-        NotifyInfo?.Invoke("İçe aktarma henüz uygulanmadı.");
+        try
+        {
+            int added = _importExport.Import(path, copyToLibrary: true);
+            ReloadSounds();
+            RegisterAllHotkeys();
+            NotifyInfo?.Invoke(LocalizationService.T("Notify_ImportDone", added));
+        }
+        catch (Exception ex)
+        {
+            NotifyError?.Invoke(LocalizationService.T("Notify_ImportFailed", ex.Message));
+        }
     }
 
     public void ExportLibrary(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
-        // TODO: Implement zip export
-        NotifyInfo?.Invoke("Dışa aktarma henüz uygulanmadı.");
+        try
+        {
+            int exported = _importExport.Export(path);
+            NotifyInfo?.Invoke(LocalizationService.T("Notify_ExportDone", exported, path));
+        }
+        catch (Exception ex)
+        {
+            NotifyError?.Invoke(LocalizationService.T("Notify_ExportFailed", ex.Message));
+        }
     }
 
     public event Action? AddFilesRequested;
@@ -516,6 +606,17 @@ public class MainViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        LocalizationService.LanguageChanged -= OnLanguageChanged;
+        _engine.Levels -= _onLevels;
+        _engine.EngineError -= _onEngineError;
+        _engine.EngineInfo -= _onEngineInfo;
+        _devices.DevicesChanged -= _onDevicesChanged;
+        _hotkeys.HotkeyPressed -= OnHotkeyPressed;
+        _hotkeys.HotkeyReleased -= OnHotkeyReleased;
+    }
 }
-
-

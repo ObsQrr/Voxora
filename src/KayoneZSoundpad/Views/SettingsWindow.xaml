@@ -2,16 +2,13 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:KayoneZSoundpad.Views"
-        Title="Ayarlar" Width="680" Height="720" WindowStartupLocation="CenterOwner"
+        Title="{DynamicResource Settings_Title}" Width="680" Height="800" WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Bg}" WindowStyle="ToolWindow"
         FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13"
         ShowInTaskbar="False">
 
     <Window.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Themes/Theme.Dark.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
             <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
             <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVis"/>
             <views:MuteIconConverter x:Key="MuteIconConverter"/>
@@ -23,10 +20,10 @@
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource Brush.Panel}"
                 BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="18,14">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="İptal" IsCancel="True" MinWidth="100" Padding="16,8"
-                        AutomationProperties.Name="İptal"/>
-                <Button Content="Kaydet" MinWidth="100" Margin="10,0,0,0" Style="{StaticResource AccentButton}"
-                        Click="Save_Click" Padding="16,8" AutomationProperties.Name="Kaydet"/>
+                <Button Content="{DynamicResource Common_Cancel}" IsCancel="True" MinWidth="100" Padding="16,8"
+                        AutomationProperties.Name="{DynamicResource Common_Cancel}"/>
+                <Button Content="{DynamicResource Common_Save}" MinWidth="100" Margin="10,0,0,0" Style="{StaticResource AccentButton}"
+                        Click="Save_Click" Padding="16,8" AutomationProperties.Name="{DynamicResource Common_Save}"/>
             </StackPanel>
         </Border>
 
@@ -37,7 +34,7 @@
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="GENEL" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+                        <TextBlock Text="{DynamicResource Settings_General}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -50,30 +47,39 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Text="Tema" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <TextBlock Text="{DynamicResource Settings_Theme}" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
                             <ComboBox x:Name="ThemeCombo" Grid.Column="1" Width="200" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Uygulama Teması">
-                                <ComboBoxItem Content="Koyu" Tag="dark"/>
-                                <ComboBoxItem Content="Açık" Tag="light"/>
+                                      AutomationProperties.Name="{DynamicResource Settings_ThemeAutomation}">
+                                <ComboBoxItem Content="{DynamicResource Settings_ThemeDark}" Tag="dark"/>
+                                <ComboBoxItem Content="{DynamicResource Settings_ThemeLight}" Tag="light"/>
                             </ComboBox>
 
-                            <CheckBox x:Name="AutoStartCheck" Grid.Row="1" Grid.ColumnSpan="2"
-                                      Content="Windows açılışında başlat" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Windows açılışında başlat"/>
+                            <TextBlock Grid.Row="1" Text="{DynamicResource Settings_Language}" Width="160"
+                                       VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <ComboBox x:Name="LanguageCombo" Grid.Row="1" Grid.Column="1" Width="200" Margin="0,0,0,10"
+                                      AutomationProperties.Name="{DynamicResource Settings_LanguageAutomation}">
+                                <ComboBoxItem Content="Türkçe" Tag="tr"/>
+                                <ComboBoxItem Content="English" Tag="en"/>
+                            </ComboBox>
 
-                            <CheckBox x:Name="StartMinimizedCheck" Grid.Row="2" Grid.ColumnSpan="2"
-                                      Content="Küçültülmüş başlat" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Küçültülmüş başlat"/>
+                            <CheckBox x:Name="AutoStartCheck" Grid.Row="2" Grid.ColumnSpan="2"
+                                      Content="{DynamicResource Settings_AutoStart}" Margin="0,0,0,10"
+                                      AutomationProperties.Name="{DynamicResource Settings_AutoStart}"/>
 
-                            <CheckBox x:Name="CloseToTrayCheck" Grid.Row="3" Grid.ColumnSpan="2"
-                                      Content="Kapat tuşu tepsiye küçültür" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Kapat tuşu tepsiye küçültür"/>
+                            <CheckBox x:Name="StartMinimizedCheck" Grid.Row="3" Grid.ColumnSpan="2"
+                                      Content="{DynamicResource Settings_StartMinimized}" Margin="0,0,0,10"
+                                      AutomationProperties.Name="{DynamicResource Settings_StartMinimized}"/>
 
-                            <CheckBox x:Name="CopyCheck" Grid.Row="4" Grid.ColumnSpan="2"
-                                      Content="İçe aktarılan dosyaları Sounds klasörüne kopyala" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Dosyaları kopyala"/>
+                            <CheckBox x:Name="CloseToTrayCheck" Grid.Row="4" Grid.ColumnSpan="2"
+                                      Content="{DynamicResource Settings_CloseToTray}" Margin="0,0,0,10"
+                                      AutomationProperties.Name="{DynamicResource Settings_CloseToTray}"/>
+
+                            <CheckBox x:Name="CopyCheck" Grid.Row="5" Grid.ColumnSpan="2"
+                                      Content="{DynamicResource Settings_CopyOnImport}" Margin="0,0,0,10"
+                                      AutomationProperties.Name="{DynamicResource Settings_CopyAutomation}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -82,7 +88,7 @@
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="DAVRANIŞ" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+                        <TextBlock Text="{DynamicResource Settings_Behavior}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -96,34 +102,34 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Text="Yeni sesin davranışı" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <TextBlock Text="{DynamicResource Settings_DefaultBehavior}" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
                             <ComboBox x:Name="BehaviorCombo" Grid.Column="1" Width="220" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Yeni ses davranışı">
-                                <ComboBoxItem Content="Yeniden başlat"/>
-                                <ComboBoxItem Content="Üstüne çal"/>
-                                <ComboBoxItem Content="Çalıyorsa durdur"/>
+                                      AutomationProperties.Name="{DynamicResource Settings_BehaviorAutomation}">
+                                <ComboBoxItem Content="{DynamicResource Settings_BehaviorRestart}"/>
+                                <ComboBoxItem Content="{DynamicResource Settings_BehaviorOverlap}"/>
+                                <ComboBoxItem Content="{DynamicResource Settings_BehaviorToggle}"/>
                             </ComboBox>
 
                             <CheckBox x:Name="SuppressCheck" Grid.Row="1" Grid.ColumnSpan="2"
-                                      Content="Kısayolların diğer uygulamalara gitmesini engelle" Margin="0,0,0,10"
-                                      AutomationProperties.Name="Kısayolları yakala"/>
+                                      Content="{DynamicResource Settings_SuppressHotkeys}" Margin="0,0,0,10"
+                                      AutomationProperties.Name="{DynamicResource Settings_SuppressAutomation}"/>
 
                             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="Motor gecikmesi" Width="160" VerticalAlignment="Center"/>
+                                <TextBlock Text="{DynamicResource Settings_EngineLatency}" Width="160" VerticalAlignment="Center"/>
                                 <Slider x:Name="LatencySlider" Width="220" Minimum="20" Maximum="200" TickFrequency="10"
                                         IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                         ValueChanged="LatencySlider_ValueChanged"
-                                        AutomationProperties.Name="Motor gecikmesi (ms)"/>
+                                        AutomationProperties.Name="{DynamicResource Settings_LatencyAutomation}"/>
                                 <TextBlock x:Name="LatencyLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
                                            VerticalAlignment="Center" Text="50 ms"/>
                             </StackPanel>
 
                             <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="Bellek önbelleği" Width="160" VerticalAlignment="Center"/>
+                                <TextBlock Text="{DynamicResource Settings_Cache}" Width="160" VerticalAlignment="Center"/>
                                 <Slider x:Name="CacheSlider" Width="220" Minimum="32" Maximum="2048" TickFrequency="64"
                                         IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                         ValueChanged="CacheSlider_ValueChanged"
-                                        AutomationProperties.Name="Bellek önbelleği (MB)"/>
+                                        AutomationProperties.Name="{DynamicResource Settings_CacheAutomation}"/>
                                 <TextBlock x:Name="CacheLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
                                            VerticalAlignment="Center" Text="256 MB"/>
                             </StackPanel>
@@ -135,7 +141,7 @@
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="SES YÖNLENDİRME" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+                        <TextBlock Text="{DynamicResource Settings_Routing}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -146,26 +152,36 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Text="Çıkış (Discord/Oyun)" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"
-                                       ToolTip="VB-CABLE kuruluysa 'Voxora In Audio' seçin; Discord'da mikrofonu 'Voxora Out Audio' yapın"/>
+                            <TextBlock Text="{DynamicResource Settings_Output}" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"
+                                       ToolTip="{DynamicResource Settings_OutputTip}"/>
                             <ComboBox x:Name="OutputCombo" Grid.Column="1" MinWidth="300" Margin="0,0,0,10"
-                                      ItemsSource="{Binding RenderDevices}" SelectedValuePath="Id"
-                                      SelectedValue="{Binding Settings.OutputDeviceId, Mode=TwoWay}"
-                                      AutomationProperties.Name="Çıkış Aygıtı"/>
+                                      ItemsSource="{Binding RenderDevices}" DisplayMemberPath="DisplayName"
+                                      SelectedValuePath="Id"
+                                      AutomationProperties.Name="{DynamicResource Settings_OutputAutomation}"/>
 
-                            <TextBlock Grid.Row="1" Text="Mikrofon" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <TextBlock Grid.Row="1" Text="{DynamicResource Settings_Microphone}" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
                             <ComboBox x:Name="MicCombo" Grid.Row="1" Grid.Column="1" MinWidth="300" Margin="0,0,0,10"
-                                      ItemsSource="{Binding CaptureDevices}" SelectedValuePath="Id"
-                                      SelectedValue="{Binding Settings.MicDeviceId, Mode=TwoWay}"
-                                      AutomationProperties.Name="Mikrofon Aygıtı"/>
+                                      ItemsSource="{Binding CaptureDevices}" DisplayMemberPath="DisplayName"
+                                      SelectedValuePath="Id"
+                                      AutomationProperties.Name="{DynamicResource Main_MicDevice}"/>
 
-                            <TextBlock Grid.Row="2" Text="Lokal Monitör (Kulaklık)" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <TextBlock Grid.Row="2" Text="{DynamicResource Settings_Monitor}" Width="160" VerticalAlignment="Center" Margin="0,0,16,10"/>
                             <ComboBox x:Name="MonitorCombo" Grid.Row="2" Grid.Column="1" MinWidth="300" Margin="0,0,0,10"
-                                      ItemsSource="{Binding RenderDevices}" SelectedValuePath="Id"
-                                      SelectedValue="{Binding Settings.MonitorDeviceId, Mode=TwoWay}"
-                                      AutomationProperties.Name="Monitör Aygıtı"/>
+                                      ItemsSource="{Binding RenderDevices}" DisplayMemberPath="DisplayName"
+                                      SelectedValuePath="Id"
+                                      AutomationProperties.Name="{DynamicResource Settings_MonitorAutomation}"/>
+
+                            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                <Button Content="{DynamicResource Settings_AutoSetup}" Padding="14,8"
+                                        Click="AutoSetup_Click"
+                                        AutomationProperties.Name="{DynamicResource Settings_AutoSetupAutomation}"/>
+                                <Button Content="{DynamicResource Settings_OpenGuide}" Padding="14,8" Margin="8,0,0,0"
+                                        Click="OpenGuide_Click"
+                                        AutomationProperties.Name="{DynamicResource Settings_OpenGuide}"/>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -174,17 +190,17 @@
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="DUCKING (Mikrofon Kısma)" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+                        <TextBlock Text="{DynamicResource Settings_Ducking}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
-                        <CheckBox x:Name="DuckCheck" Content="Efekt çalarken mikrofonu kıs" Margin="0,0,0,10"
-                                  AutomationProperties.Name="Ducking aktif"/>
+                        <CheckBox x:Name="DuckCheck" Content="{DynamicResource Settings_DuckEnable}" Margin="0,0,0,10"
+                                  AutomationProperties.Name="{DynamicResource Settings_DuckingAutomation}"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Kısma oranı" Width="160" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Settings_DuckRatio}" Width="160" VerticalAlignment="Center"/>
                             <Slider x:Name="DuckSlider" Width="220" Minimum="0" Maximum="1" TickFrequency="0.05"
                                     IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                     ValueChanged="DuckSlider_ValueChanged"
-                                    AutomationProperties.Name="Ducking oranı"/>
+                                    AutomationProperties.Name="{DynamicResource Settings_DuckAutomation}"/>
                             <TextBlock x:Name="DuckLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
                                        VerticalAlignment="Center" Text="%25"/>
                         </StackPanel>
@@ -195,12 +211,12 @@
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="KISAYOLLAR" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+                        <TextBlock Text="{DynamicResource Settings_Hotkeys}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Tümünü Durdur" Width="160" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Settings_StopAllHotkey}" Width="160" VerticalAlignment="Center"/>
                             <views:HotkeyBox x:Name="StopAllHotkeyBox" Width="300" HorizontalAlignment="Left"
-                                             AutomationProperties.Name="Tüm sesleri durdur kısayolu"/>
+                                             AutomationProperties.Name="{DynamicResource Settings_StopAllHotkeyAutomation}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -209,7 +225,7 @@
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="HAKKINDA" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+                        <TextBlock Text="{DynamicResource Settings_About}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Border Width="48" Height="48" CornerRadius="10" Background="{DynamicResource Brush.Accent}">
@@ -218,9 +234,9 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Voxora v1.1" FontSize="16" FontWeight="SemiBold"
+                                <TextBlock x:Name="AboutVersionText" FontSize="16" FontWeight="SemiBold"
                                            Foreground="{DynamicResource Brush.TextPrimary}"/>
-                                <TextBlock Text="NAudio/WASAPI tabanlı ses efekti pedi" FontSize="12"
+                                <TextBlock Text="{DynamicResource Settings_AboutTagline}" FontSize="12"
                                            Foreground="{DynamicResource Brush.TextSecondary}"/>
                             </StackPanel>
                         </StackPanel>

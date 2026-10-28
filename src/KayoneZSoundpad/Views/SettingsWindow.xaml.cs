@@ -1,8 +1,8 @@
-using KayoneZSoundpad.Models;
-using System.Diagnostics;
+using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using KayoneZSoundpad.Audio;
+using KayoneZSoundpad.Models;
 using KayoneZSoundpad.Services;
 using KayoneZSoundpad.ViewModels;
 
@@ -12,16 +12,19 @@ public partial class SettingsWindow : Window
 {
     private readonly MainViewModel _vm;
     private readonly App _app;
+    private bool _closed;
 
     public SettingsWindow(MainViewModel vm)
     {
         _vm = vm;
         _app = (App)System.Windows.Application.Current;
-        DataContext = _vm;
         InitializeComponent();
+        DataContext = _vm;
+
         var s = vm.Settings;
 
         ThemeCombo.SelectedIndex = s.Theme == "light" ? 1 : 0;
+        LanguageCombo.SelectedIndex = s.Language == LocalizationService.English ? 1 : 0;
         AutoStartCheck.IsChecked = AutoStartService.IsEnabled();
         StartMinimizedCheck.IsChecked = s.StartMinimized;
         CloseToTrayCheck.IsChecked = s.CloseToTray;
@@ -41,34 +44,89 @@ public partial class SettingsWindow : Window
 
         StopAllHotkeyBox.Value = s.StopAllHotkey?.Clone();
 
-        // SelectedValue binding (SelectedValuePath=Id) handles device selection automatically
-        Loaded += (_, _) =>
+        // Cihaz seçimleri elle yönetilir; liste yenilenirken geçici null oluşmaz.
+        RefreshDeviceSelections();
+        _vm.RenderDevices.CollectionChanged += OnDevicesChanged;
+        _vm.CaptureDevices.CollectionChanged += OnDevicesChanged;
+
+        UpdateAbout();
+        LocalizationService.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) =>
         {
-            this.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                Log("SettingsWindow Loaded (deferred) basladi");
-                Log("Settings.OutputDeviceId = " + (_vm.Settings.OutputDeviceId ?? "null"));
-                Log("Settings.MicDeviceId = " + (_vm.Settings.MicDeviceId ?? "null"));
-                Log("Settings.MonitorDeviceId = " + (_vm.Settings.MonitorDeviceId ?? "null"));
-                Log("RenderDevices count = " + _vm.RenderDevices.Count);
-                Log("CaptureDevices count = " + _vm.CaptureDevices.Count);
-            }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            _closed = true;
+            LocalizationService.LanguageChanged -= OnLanguageChanged;
+            _vm.RenderDevices.CollectionChanged -= OnDevicesChanged;
+            _vm.CaptureDevices.CollectionChanged -= OnDevicesChanged;
         };
-
-        AboutText.Text = $"Voxora v1.1 — NAudio/WASAPI tabanlı ses efekti pedi. " +
-                         $"Veriler: {AppPaths.BaseDir}";
     }
 
-    private void Log(string msg)
+    private void OnDevicesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshDeviceSelections();
+
+    private void RefreshDeviceSelections()
     {
-        try { System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "voxora-ui.log"),
-            DateTime.Now.ToString("HH:mm:ss.fff") + " " + msg + Environment.NewLine); } catch { }
+        if (OutputCombo == null || MicCombo == null || MonitorCombo == null) return;
+        var s = _vm.Settings;
+        OutputCombo.SelectedValue = s.OutputDeviceId;
+        MicCombo.SelectedValue = s.MicDeviceId;
+        MonitorCombo.SelectedValue = s.MonitorDeviceId;
     }
 
-    private void DownloadCable_Click(object sender, RoutedEventArgs e)
+    private static string VersionText
     {
-        try { Process.Start(new ProcessStartInfo("https://vb-audio.com/Cable/") { UseShellExecute = true }); }
-        catch { System.Windows.MessageBox.Show("Tarayıcı açılamadı. Adres: https://vb-audio.com/Cable/", "Voxora"); }
+        get
+        {
+            var v = typeof(App).Assembly.GetName().Version;
+            if (v == null) return "1.2.0";
+            return v.Build > 0 ? $"{v.Major}.{v.Minor}.{v.Build}" : $"{v.Major}.{v.Minor}";
+        }
+    }
+
+    private void UpdateAbout()
+    {
+        AboutVersionText.Text = $"Voxora v{VersionText}";
+        AboutText.Text = LocalizationService.T("Settings_AboutData", VersionText, AppPaths.BaseDir);
+    }
+
+    private void OnLanguageChanged()
+    {
+        if (_closed) return;
+        UpdateAbout();
+        RefreshDeviceSelections();
+    }
+
+    private void AutoSetup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm.Devices.FindCableRender() == null || _vm.Devices.FindCableCapture() == null)
+        {
+            System.Windows.MessageBox.Show(LocalizationService.T("Settings_AutoSetupMissing"),
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!_vm.AutoConfigureCable())
+        {
+            System.Windows.MessageBox.Show(LocalizationService.T("Settings_AutoSetupFailed"),
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // AppSettings INotifyPropertyChanged değil → combo'ları elle tazele.
+        RefreshDeviceSelections();
+
+        var mic = _vm.CaptureDevices.FirstOrDefault(d => d.Id == _vm.Settings.MicDeviceId)?.Name
+                  ?? LocalizationService.T("Guide_NotFound");
+        var mon = _vm.RenderDevices.FirstOrDefault(d => d.Id == _vm.Settings.MonitorDeviceId)?.Name
+                  ?? LocalizationService.T("Guide_NotFound");
+
+        System.Windows.MessageBox.Show(
+            LocalizationService.T("Settings_AutoSetupOk", mic, mon),
+            "Voxora", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void OpenGuide_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new CableGuideWindow(_vm) { Owner = this };
+        dlg.ShowDialog();
     }
 
     private void LatencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -88,14 +146,10 @@ public partial class SettingsWindow : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        Log("Save_Click basladi");
-        Log("OutputCombo.SelectedItem = " + ((OutputCombo.SelectedItem as DeviceEntry)?.Id ?? "null"));
-        Log("MicCombo.SelectedItem = " + ((MicCombo.SelectedItem as DeviceEntry)?.Id ?? "null"));
-        Log("MonitorCombo.SelectedItem = " + ((MonitorCombo.SelectedItem as DeviceEntry)?.Id ?? "null"));
-
         var s = _vm.Settings;
 
         s.Theme = ThemeCombo.SelectedIndex == 1 ? "light" : "dark";
+        s.Language = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? LocalizationService.Turkish;
         s.StartMinimized = StartMinimizedCheck.IsChecked == true;
         s.CloseToTray = CloseToTrayCheck.IsChecked == true;
         s.CopyOnImport = CopyCheck.IsChecked == true;
@@ -107,21 +161,21 @@ public partial class SettingsWindow : Window
         s.DuckFactor = (float)DuckSlider.Value;
         s.StopAllHotkey = StopAllHotkeyBox.Value;
 
-        // SelectedValue binding handles these automatically, but keep fallback
-        s.OutputDeviceId = (OutputCombo.SelectedItem as DeviceEntry)?.Id;
-        s.MicDeviceId = (MicCombo.SelectedItem as DeviceEntry)?.Id;
-        s.MonitorDeviceId = (MonitorCombo.SelectedItem as DeviceEntry)?.Id;
+        if (OutputCombo.SelectedItem is DeviceEntry outDev) s.OutputDeviceId = outDev.Id;
+        if (MicCombo.SelectedItem is DeviceEntry micDev) s.MicDeviceId = micDev.Id;
+        if (MonitorCombo.SelectedItem is DeviceEntry monDev) s.MonitorDeviceId = monDev.Id;
 
         AutoStartService.SetEnabled(AutoStartCheck.IsChecked == true);
 
         _app.ApplyTheme(s.Theme);
+        LocalizationService.SetLanguage(s.Language);
         _vm.ApplyEngineConfig();
         var conflicts = _vm.RegisterAllHotkeys();
         _vm.SaveSettings();
-        Log("SaveSettings cagirildi");
 
         if (!string.IsNullOrEmpty(conflicts))
-            System.Windows.MessageBox.Show(conflicts, "Kısayol çakışması", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show(conflicts, LocalizationService.T("Settings_HotkeyConflictTitle"),
+                MessageBoxButton.OK, MessageBoxImage.Warning);
 
         DialogResult = true;
     }

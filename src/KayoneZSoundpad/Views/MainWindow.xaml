@@ -7,13 +7,11 @@
         Background="{DynamicResource Brush.Bg}"
         FontFamily="Segoe UI Variable Display, Segoe UI, Arial"
         FontSize="13"
-        AllowDrop="True">
+        AllowDrop="True"
+        Drop="OnDrop" DragOver="OnDragOver">
 
     <Window.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Themes/Theme.Dark.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
             <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
             <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVis"/>
             <views:MuteIconConverter x:Key="MuteIconConverter"/>
@@ -48,23 +46,13 @@
                                       CommandParameter="{Binding}"/>
                     </Border.InputBindings>
                     <Border.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="Çal / Durdur"
-                                      Command="{Binding DataContext.PlayStopCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding}"/>
-                            <MenuItem Header="Sesi Kıs / Aç"
-                                      Command="{Binding DataContext.ToggleMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding}"/>
-                            <MenuItem Header="Düzenle..."
-                                      Command="{Binding DataContext.EditSoundCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding}"/>
-                            <MenuItem Header="Favori"
-                                      Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding}"/>
+                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <MenuItem Header="{DynamicResource Main_CardPlayStop}" Tag="play" Click="CardMenu_Click"/>
+                            <MenuItem Header="{DynamicResource Main_CardMuteToggle}" Tag="mute" Click="CardMenu_Click"/>
+                            <MenuItem Header="{DynamicResource Main_CardEdit}" Tag="edit" Click="CardMenu_Click"/>
+                            <MenuItem Header="{DynamicResource Main_CardFavorite}" Tag="favorite" Click="CardMenu_Click"/>
                             <Separator/>
-                            <MenuItem Header="Kütüphaneden Kaldır"
-                                      Command="{Binding DataContext.DeleteSoundCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding}"/>
+                            <MenuItem Header="{DynamicResource Main_CardRemove}" Tag="remove" Click="CardMenu_Click"/>
                         </ContextMenu>
                     </Border.ContextMenu>
                     <Border.Style>
@@ -156,7 +144,8 @@
                             <TextBlock Text="🔊" FontSize="12" Margin="0,0,6,0" Foreground="{DynamicResource Brush.TextMuted}"/>
                             <Slider Grid.Column="1" Minimum="0" Maximum="1.5"
                                     Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1"/>
+                                    VerticalAlignment="Center" SmallChange="0.05" LargeChange="0.1"
+                                    AutomationProperties.Name="{DynamicResource Card_Volume}"/>
                             <Button Grid.Column="2"
                                     Command="{Binding DataContext.ToggleMuteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" Padding="8,4" Margin="8,0,0,0"
@@ -164,7 +153,7 @@
                                     FontSize="11" Foreground="{DynamicResource Brush.TextPrimary}"
                                     Background="Transparent" BorderBrush="{DynamicResource Brush.InputBorder}"
                                     ToolTip="{Binding IsMuted, Converter={StaticResource MuteTipConverter}}"
-                                    AutomationProperties.Name="Sesi Kıs/Aç"/>
+                                    AutomationProperties.Name="{DynamicResource Main_MuteAutomation}"/>
                         </Grid>
                     </Grid>
                 </Border>
@@ -210,8 +199,9 @@
                                  VerticalContentAlignment="Center" Padding="8,0,0,0"
                                  BorderThickness="0" Background="Transparent"
                                  Foreground="{DynamicResource Brush.TextPrimary}"
-                                 FontSize="13" CaretBrush="{DynamicResource Brush.Accent}"/>
-                        <TextBlock Grid.Column="1" Text="Ses ara..." Margin="8,0,0,0" VerticalAlignment="Center"
+                                 FontSize="13" CaretBrush="{DynamicResource Brush.Accent}"
+                                 AutomationProperties.Name="{DynamicResource Main_SearchPlaceholder}"/>
+                        <TextBlock Grid.Column="1" Text="{DynamicResource Main_SearchPlaceholder}" Margin="8,0,0,0" VerticalAlignment="Center"
                                    Foreground="{DynamicResource Brush.TextMuted}" IsHitTestVisible="False"
                                    FontSize="13">
                             <TextBlock.Style>
@@ -231,38 +221,43 @@
                 <!-- Sağ Aksiyonlar -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,-4,0">
                     <Button Command="{Binding AddFilesCommand}" Style="{StaticResource AccentButton}"
-                            Padding="16,8" AutomationProperties.Name="Ses Dosyası Ekle">
+                            Padding="16,8" AutomationProperties.Name="{DynamicResource Main_AddSoundFile}"
+                            ToolTip="{DynamicResource Main_AddSoundTip}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="➕" FontSize="14" Margin="0,0,8,0" Foreground="{DynamicResource Brush.OnAccent}"/>
-                            <TextBlock Text="Ses Ekle"/>
+                            <TextBlock Text="{DynamicResource Main_AddSound}"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding AddFolderCommand}" Margin="8,0,0,0" Padding="12,8"
-                            AutomationProperties.Name="Klasörden Ekle" ToolTip="Klasördeki tüm ses dosyalarını ekle">
+                            AutomationProperties.Name="{DynamicResource Main_AddFolder}"
+                            ToolTip="{DynamicResource Main_AddFolderTip}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="📁" FontSize="14" Margin="0,0,6,0"/>
-                            <TextBlock Text="Klasör"/>
+                            <TextBlock Text="{DynamicResource Main_AddFolder}"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="ImportBtn" Click="ImportLibrary_Click" Margin="8,0,0,0" Padding="12,8"
-                            AutomationProperties.Name="Kütüphaneyi İçe Aktar" ToolTip="Kütüphaneyi geri yükle (.zip)">
+                            AutomationProperties.Name="{DynamicResource Main_Import}"
+                            ToolTip="{DynamicResource Main_ImportTip}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="📥" FontSize="14" Margin="0,0,6,0"/>
-                            <TextBlock Text="İçe Al"/>
+                            <TextBlock Text="{DynamicResource Main_Import}"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="ExportBtn" Click="ExportLibrary_Click" Margin="8,0,0,0" Padding="12,8"
-                            AutomationProperties.Name="Kütüphaneyi Dışa Aktar" ToolTip="Kütüphaneyi yedekle (.zip)">
+                            AutomationProperties.Name="{DynamicResource Main_Export}"
+                            ToolTip="{DynamicResource Main_ExportTip}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="📤" FontSize="14" Margin="0,0,6,0"/>
-                            <TextBlock Text="Dışa Aktar"/>
+                            <TextBlock Text="{DynamicResource Main_Export}"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="SettingsBtn" Click="OpenSettings_Click" Margin="8,0,0,0" Padding="12,8"
-                            AutomationProperties.Name="Ayarlar" ToolTip="Ayarlar (Ctrl+,)">
+                            AutomationProperties.Name="{DynamicResource Main_Settings}"
+                            ToolTip="{DynamicResource Main_SettingsTip}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⚙" FontSize="14" Margin="0,0,6,0"/>
-                            <TextBlock Text="Ayarlar"/>
+                            <TextBlock Text="{DynamicResource Main_Settings}"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -284,31 +279,32 @@
                 <!-- Mikrofon -->
                 <StackPanel Grid.Column="0" Margin="0,0,24,0">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                        <TextBlock Text="MIKROFON" Style="{StaticResource SectionLabel}"/>
-                        <CheckBox x:Name="MicToggle" Content="Aktif" Margin="12,0,0,0" FontSize="12"
+                        <TextBlock Text="{DynamicResource Main_Microphone}" Style="{StaticResource SectionLabel}"/>
+                        <CheckBox x:Name="MicToggle" Content="{DynamicResource Main_MicActive}" Margin="12,0,0,0" FontSize="12"
                                   Checked="MicToggle_Changed" Unchecked="MicToggle_Changed"
-                                  AutomationProperties.Name="Mikrofon Aktif"/>
+                                  AutomationProperties.Name="{DynamicResource Main_MicActiveAutomation}"/>
                     </StackPanel>
                     <ComboBox x:Name="MicDeviceCombo" ItemsSource="{Binding CaptureDevices}"
-                              SelectedValuePath="Id" SelectedValue="{Binding Settings.MicDeviceId, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="Id"
                               MinWidth="240" SelectionChanged="MicDevice_SelectionChanged"
-                              AutomationProperties.Name="Mikrofon Aygıtı"/>
+                              AutomationProperties.Name="{DynamicResource Main_MicDevice}"/>
                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                         <TextBlock Text="🔊" FontSize="12" Margin="0,0,8,0" Foreground="{DynamicResource Brush.TextMuted}"/>
                         <Slider x:Name="MicVolumeSlider" Width="180" Minimum="0" Maximum="1.5"
                                 ValueChanged="MicVolume_Changed" Thumb.DragCompleted="MixerDragCompleted"
-                                VerticalAlignment="Center" AutomationProperties.Name="Mikrofon Ses Seviyesi"/>
+                                VerticalAlignment="Center" AutomationProperties.Name="{DynamicResource Main_MicVolume}"/>
                         <TextBlock x:Name="MicVolumeLabel" Style="{StaticResource Muted}" Margin="10,0,0,0" Text="100%"/>
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Efekt Sesleri -->
                 <StackPanel Grid.Column="1" Margin="0,0,24,0">
-                    <TextBlock Text="EFEKT SESLERİ" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                    <TextBlock Text="{DynamicResource Main_EffectSounds}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
                         <Slider x:Name="FxVolumeSlider" Width="180" Minimum="0" Maximum="1.5"
                                 ValueChanged="FxVolume_Changed" Thumb.DragCompleted="MixerDragCompleted"
-                                VerticalAlignment="Center" AutomationProperties.Name="Efekt Ses Seviyesi"/>
+                                VerticalAlignment="Center" AutomationProperties.Name="{DynamicResource Main_FxVolume}"/>
                         <TextBlock x:Name="FxVolumeLabel" Style="{StaticResource Muted}" Margin="10,0,0,0" Text="100%"/>
                     </StackPanel>
                     <Grid Margin="0,6,0,0">
@@ -316,7 +312,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="EFEKT" Style="{StaticResource Muted}" Width="44" FontSize="10.5"/>
+                        <TextBlock Text="{DynamicResource Main_Effect}" Style="{StaticResource Muted}" Width="44" FontSize="10.5"/>
                         <ProgressBar x:Name="FxMeter" Grid.Column="1" Height="5" Minimum="0" Maximum="1"
                                      Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center"/>
                     </Grid>
@@ -325,7 +321,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="ÇIKIŞ" Style="{StaticResource Muted}" Width="44" FontSize="10.5"/>
+                        <TextBlock Text="{DynamicResource Main_OutputMeter}" Style="{StaticResource Muted}" Width="44" FontSize="10.5"/>
                         <ProgressBar x:Name="OutMeter" Grid.Column="1" Height="5" Minimum="0" Maximum="1"
                                      Foreground="{DynamicResource Brush.Success}" VerticalAlignment="Center"/>
                     </Grid>
@@ -334,24 +330,25 @@
                 <!-- Çıkış (Oyun/Discord) -->
                 <StackPanel Grid.Column="2" Margin="0,0,24,0">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                        <TextBlock Text="ÇIKIŞ (OYUN / DISCORD)" Style="{StaticResource SectionLabel}"/>
-                        <CheckBox x:Name="MonitorToggle" Content="Lokal Dinle" Margin="12,0,0,0" FontSize="12"
+                        <TextBlock Text="{DynamicResource Main_OutputGameDiscord}" Style="{StaticResource SectionLabel}"/>
+                        <CheckBox x:Name="MonitorToggle" Content="{DynamicResource Main_LocalMonitor}" Margin="12,0,0,0" FontSize="12"
                                   Checked="MonitorToggle_Changed" Unchecked="MonitorToggle_Changed"
-                                  AutomationProperties.Name="Lokal Dinleme"/>
+                                  AutomationProperties.Name="{DynamicResource Main_MonitorAutomation}"/>
                     </StackPanel>
                     <ComboBox x:Name="OutputDeviceCombo" ItemsSource="{Binding RenderDevices}"
-                              SelectedValuePath="Id" SelectedValue="{Binding Settings.MonitorDeviceId, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="Id"
                               MinWidth="240" SelectionChanged="OutputDevice_SelectionChanged"
-                              AutomationProperties.Name="Çıkış Aygıtı"/>
+                              AutomationProperties.Name="{DynamicResource Main_OutputDevice}"/>
                 </StackPanel>
 
                 <!-- Durdur -->
                 <Button Grid.Column="3" x:Name="StopAllBtn" Command="{Binding StopAllCommand}"
                         Style="{StaticResource DangerButton}" VerticalAlignment="Center"
-                        AutomationProperties.Name="Tüm Sesleri Durdur" Padding="16,10">
+                        AutomationProperties.Name="{DynamicResource Main_StopAll}" Padding="16,10">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="⏹" FontSize="14" Margin="0,0,8,0" Foreground="{DynamicResource Brush.OnAccent}"/>
-                        <TextBlock Text="Durdur"/>
+                        <TextBlock Text="{DynamicResource Main_Stop}"/>
                     </StackPanel>
                 </Button>
             </Grid>
@@ -361,15 +358,15 @@
         <Border DockPanel.Dock="Left" Width="240" Background="{DynamicResource Brush.Panel}"
                 BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,0,1,0">
             <StackPanel>
-                <TextBlock Text="KATEGORİLER" Style="{StaticResource SectionLabel}"
+                <TextBlock Text="{DynamicResource Main_Categories}" Style="{StaticResource SectionLabel}"
                            Margin="18,18,18,10"/>
 
                 <Button Command="{Binding AddCategoryCommand}"
                         Margin="14,0,14,10" Padding="10,8" FontSize="12.5"
-                        HorizontalAlignment="Stretch" AutomationProperties.Name="Yeni Kategori">
+                        HorizontalAlignment="Stretch" AutomationProperties.Name="{DynamicResource Main_NewCategory}">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock Text="➕" FontSize="14" Margin="0,0,6,0"/>
-                        <TextBlock Text="Kategori Ekle"/>
+                        <TextBlock Text="{DynamicResource Main_AddCategory}"/>
                     </StackPanel>
                 </Button>
 
@@ -377,7 +374,7 @@
                 <Button x:Name="CableStatusBtn" Click="OpenCableGuide_Click"
                         Margin="14,0,14,16" Padding="12,10" HorizontalContentAlignment="Left"
                         Background="Transparent" BorderBrush="{DynamicResource Brush.Divider}"
-                        AutomationProperties.Name="Mikrofon Yönlendirme Rehberi"
+                        AutomationProperties.Name="{DynamicResource Main_CategoryGuide}"
                         VerticalAlignment="Bottom">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock x:Name="CableStatusIcon" Text="ℹ" FontSize="14" Margin="0,0,8,0"
@@ -389,10 +386,21 @@
 
                 <ListBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
                          Margin="12,0,12,12" x:Name="CategoryList"
-                         AutomationProperties.Name="Ses Kategorileri">
+                         ContextMenuOpening="CategoryList_ContextMenuOpening"
+                         AutomationProperties.Name="{DynamicResource Main_CategoriesAutomation}">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                        </Style>
+                    </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>
+                                <Grid.ContextMenu>
+                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                        <MenuItem Header="{DynamicResource Category_Rename}" Click="RenameCategory_Click"/>
+                                        <MenuItem Header="{DynamicResource Category_Delete}" Click="DeleteCategory_Click"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -434,25 +442,25 @@
                         <TextBlock Text="🔊" FontSize="36" Foreground="{DynamicResource Brush.Accent}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
-                    <TextBlock Text="Henüz Ses Efekti Yok" FontSize="22" FontWeight="SemiBold"
+                    <TextBlock Text="{DynamicResource Main_EmptyTitle}" FontSize="22" FontWeight="SemiBold"
                                HorizontalAlignment="Center" Foreground="{DynamicResource Brush.TextPrimary}"
                                Margin="0,0,0,10"/>
-                    <TextBlock Text="MP3, WAV, OGG veya FLAC dosyalarını buraya sürükleyip bırakın. &#x0a;Karşı tarafın duyması için Mikrofon Rehberi'ni açın."
+                    <TextBlock Text="{DynamicResource Main_EmptyBody}"
                                TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,28"
                                Foreground="{DynamicResource Brush.TextSecondary}" FontSize="14" LineHeight="22"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Command="{Binding AddFilesCommand}" Style="{StaticResource AccentButton}"
-                                Padding="20,10" AutomationProperties.Name="Ses Dosyası Ekle">
+                                Padding="20,10" AutomationProperties.Name="{DynamicResource Main_AddSoundFile}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="➕" FontSize="14" Margin="0,0,8,0" Foreground="{DynamicResource Brush.OnAccent}"/>
-                                <TextBlock Text="Ses Dosyası Ekle"/>
+                                <TextBlock Text="{DynamicResource Main_AddSoundFile}"/>
                             </StackPanel>
                         </Button>
                         <Button Click="OpenCableGuide_Click" Margin="12,0,0,0" Padding="20,10"
-                                AutomationProperties.Name="Mikrofon Rehberi">
+                                AutomationProperties.Name="{DynamicResource Main_MicGuide}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🎙" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Mikrofon Rehberi"/>
+                                <TextBlock Text="{DynamicResource Main_MicGuide}"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>

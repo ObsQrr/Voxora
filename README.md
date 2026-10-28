@@ -4,27 +4,41 @@ Windows ses efekti pedalı (soundboard) uygulaması. Ses efektlerini mikrofon y�
 
 ## Sürüm
 
-**v1.1.0** — .NET 8 / WPF / NAudio
+**v1.2.0** — .NET 8 / WPF / NAudio
 
 | Öğe | Değer |
 |-----|-------|
 | Uygulama | `Voxora.exe` |
-| Kurulum paketi | `Voxora-Setup.exe` |
-| Kurulum SHA-256 | `41EE72D82A1426C5584E657D2F21DD3E98292973B3D6F21D3F5BD817C41BB1A2` |
-| EXE SHA-256 | `96D657AE8637F2A77ECD5CA1983259B9378DE7A237785E1D536C5E117FFE2BE4` |
-| Testler | 43/43 geçti (.NET 8, Release) |
+| Kurulum paketi | `Voxora-Setup.exe` (sürüm yayınlanınca üretilir) |
+| Arayüz dilleri | Türkçe (varsayılan), İngilizce |
+| Testler | 66/66 geçti (.NET 8, Release) |
+| Durum | v1.2.0 yerel olarak hazır; GitHub'a gönderim/etiketleme ayrı onay bekliyor |
+
+> Bu sürüm henüz yayınlanmadığı için kurulum/EXE SHA-256 değerleri yer almaz.
+> Yayın paketleri üretildikten sonra hash'ler bu tabloya eklenecektir.
+
+### v1.2.0 Yenilikleri
+
+- Tam **Türkçe + İngilizce** arayüz; dil Ayarlar'dan değiştirilir ve kaydedilir.
+- VB-CABLE eşleştirmesi artık Windows'un gerçek aygıt adı üzerinden yapılır
+  (`Voxora In Audio` / `Voxora Out Audio` görünen adları korunur).
+- Sessize alınmış seslerin tetiklendiğinde bir an duyulması engellendi.
+- Akış (streaming) çalan seslerde dosya tutamacı sızıntısı giderildi.
+- ZIP içe aktarma: zip-slip, symlink, aşırı boyut/adet ve bozuk manifest korumaları.
+- Tema seçimi tüm pencerelerde tutarlı hale getirildi.
+- Ses seviyesi kaydırmaları 400 ms gecikmeli kaydedilir; gereksiz disk yazımı azaltıldı.
 
 ---
 
 ## Ne İşe Yarar?
 
-Voxora, bilgisayarınızda kayıtlı ses dosyalarını ("kartlar") tek tusta oynatır ve sesini sanal bir mikrofon üzerinden karşı tarafa iletir. Örnek kullanım senaryoları:
+Voxora, bilgisayarınızda kayıtlı ses dosyalarını ("kartlar") tek tuşta oynatır ve sesini sanal bir mikrofon üzerinden karşı tarafa iletir. Örnek kullanım senaryoları:
 
 - Discord'da ses efekti çalmak
 - Oyun içinde ses klibi kullanmak
 - Stream sırasında ses jingli eklemek
 
-Ses yönlendirme için **VB-CABLE** (VB-Audio) sanal ses sürücüsü kullanılır. Voxora,VB-CABLE'nin iki uç bağlantısını algılar ve kullanıcıya şu görünen adlarla tanıtır:
+Ses yönlendirme için **VB-CABLE** (VB-Audio) sanal ses sürücüsü kullanılır. Voxora, VB-CABLE'nin iki uç bağlantısını algılar ve kullanıcıya şu görünen adlarla tanıtır:
 
 | Voxora'da görünen ad | Windows'taki gerçek cihaz | İşlevi |
 |----------------------|---------------------------|--------|
@@ -32,6 +46,14 @@ Ses yönlendirme için **VB-CABLE** (VB-Audio) sanal ses sürücüsü kullanıl�
 | **Voxora Out Audio** | `CABLE Output (VB-Audio Virtual Cable)` | Sanal kablodan çıkan sesi mikrofon gibi okuyan sanal kayıt (capture) aygıtı. Discord/oyun burayı **Giriş Aygıtı** olarak seçer. |
 
 Gerçek cihaz kimlikleri (MMDevice ID) dahili olarak korunur; yalnızca ekranda görünen etiket Voxora markalıdır.
+
+### Dil Desteği
+
+Arayüz Türkçe (varsayılan) ve İngilizce olarak kullanılabilir:
+**Ayarlar → Genel → Dil** bölümünden dil seçilip **Kaydet**'e basılır.
+Seçim `settings.json` içindeki `language` alanına yazılır (`tr` / `en`);
+bilinmeyen değerler Türkçe'ye döner. Dil değişikliği ana pencere, kartlar,
+kategoriler, cihaz listeleri, tepsi menüsü ve tüm iletişim kutularına uygulanır.
 
 ---
 
@@ -77,7 +99,7 @@ Kullanıcı verileri şu konumda saklanır:
 
 ```
 %APPDATA%\KayoneZSoundpad\
-├── settings.json   # Uygulama ayarları (tema, cihaz ID'leri, ses seviyeleri, kısayollar)
+├── settings.json   # Uygulama ayarları (dil, tema, cihaz ID'leri, ses seviyeleri)
 ├── library.json    # Ses kitaplığı (kartlar, kategoriler, sıralama)
 └── Sounds/         # İçe aktarılan ses dosyalarının kopyaları
 ```
@@ -110,7 +132,7 @@ dotnet build -c Release
 dotnet test -c Release
 
 # Self-contained win-x64 yayınla
-dotnet publish src/KayoneZSoundpad\KayoneZSoundpad.csproj -c Release -r win-x64 --self-contained true -o dist\Voxora
+dotnet publish src\KayoneZSoundpad\KayoneZSoundpad.csproj -c Release -r win-x64 --self-contained true -o dist\Voxora
 ```
 
 ### Kurulum paketi derlemesi
@@ -155,30 +177,40 @@ KayoneZSoundpad/
 │       │   ├── AppPaths.cs         # %APPDATA%\KayoneZSoundpad yolu
 │       │   ├── AutoStartService.cs # Windows başlangıç kayıt defteri
 │       │   ├── ImportExportService.cs  # ZIP içe/dışa aktarma (dizin traversal korumalı)
-│       │   ├── JsonStore.cs        # Güvenli JSON serileştirme (derinlik sınırlı)
-│       │   ├── LibraryService.cs   # Ses kitaplığı yönetimi (yol beyaz listesi)
-│       │   └── SettingsService.cs  # Ayar yükleme/kaydetme
+│       │   ├── JsonStore.cs        # Güvenli JSON serileştirme (derinlik/boyut sınırlı)
+│       │   ├── LibraryService.cs   # Ses kitaplığı yönetimi + gecikmeli kayıt
+│       │   ├── LocalizationService.cs  # Türkçe/İngilizce metinler ve dil değiştirme
+│       │   ├── PlaybackManager.cs  # Çalma davranışları, önbellek/akış seçimi
+│       │   └── SettingsService.cs  # Ayar yükleme/kaydetme ve doğrulama
 │       ├── Themes/
 │       │   ├── Theme.Dark.xaml     # Koyu tema kaynakları
 │       │   └── Theme.Light.xaml    # Açık tema kaynakları
 │       ├── ViewModels/
-│       │   └── MainViewModel.cs    # Ana görünüm modeli (cable ayarı, cihaz seçimi)
+│       │   ├── MainViewModel.cs    # Ana görünüm modeli (kategori, cihaz, kısayol)
+│       │   ├── RelayCommand.cs     # Basit ICommand uygulaması
+│       │   └── SoundCardViewModel.cs  # Tek ses kartı görünüm modeli
 │       └── Views/
-│           ├── MainWindow.xaml(.cs)        # Ana pencere (ses kartı ızgarası, misir barı)
-│           ├── SettingsWindow.xaml(.cs)    # Ayarlar penceresi
+│           ├── MainWindow.xaml(.cs)        # Ana pencere (ses kartı ızgarası, mikser barı)
+│           ├── SettingsWindow.xaml(.cs)    # Ayarlar penceresi (dil, tema, cihazlar)
 │           ├── CableGuideWindow.xaml(.cs)  # VB-CABLE kurulum rehberi
 │           ├── EditSoundDialog.xaml(.cs)   # Ses düzenleme iletişim kutusu
-│           └── HotkeyBox.xaml.cs           # Kısayol girişi kontrolü
+│           ├── InputDialog.xaml(.cs)       # Metin girişi (kategori adı vb.)
+│           ├── HotkeyBox.xaml(.cs)         # Kısayol girişi kontrolü
+│           └── Converters.cs               # XAML değer dönüştürücüleri
 ├── tests/
 │   └── KayoneZSoundpad.Tests/
 │       ├── AudioEngineIntegrationTests.cs
 │       ├── AudioTests.cs
+│       ├── DeviceNamingTests.cs
 │       ├── FormatDecodeTests.cs
 │       ├── HotkeyGestureTests.cs
 │       ├── ImportExportTests.cs
 │       ├── JsonStoreTests.cs
 │       ├── LibraryServiceTests.cs
+│       ├── LocalizationTests.cs
 │       ├── PlaybackManagerTests.cs
+│       ├── SettingsLanguageTests.cs
+│       ├── ThemeResourceTests.cs
 │       └── TestConfig.cs
 └── dist/                       # Derleme çıktısı (git'e dahil edilmez)
 ```
@@ -191,13 +223,15 @@ Aşağıdaki güvenlik korumaları uygulanmıştır:
 
 | Alan | Koruma |
 |------|--------|
-| ZIP içe aktarma | Dizin traversal (zip-slip) koruması; her girişin hedef yolunun geçici dizin içinde olduğunun kontrolü |
-| JSON serileştirme | `MaxDepth=64`, `PropertyNameCaseInsensitive=false`, trailing comma yorum dışı, yorum dışı, varsayılan encoder |
+| ZIP içe aktarma | Dizin traversal (zip-slip) koruması; her girişin hedef yolu geçici dizin içinde doğrulanır, dışarı taşan girişler atlanır |
+| ZIP kaynakları | Symlink/reparse-point girişleri atlanır; en fazla 5.000 giriş, toplam 2 GB, tek giriş 512 MB |
+| ZIP içe aktarma kopyası | Geçici çıkarma dizini silindiği için dosyalar her durumda kalıcı kitaplığa kopyalanır |
+| JSON serileştirme | `MaxDepth=64`, belge başına 32 MB üst sınır, büyük/küçük harf duyarlı üyeler, trailing comma/yorum kapalı |
 | Ses dosyası çözme | `maxBytes` sınırı; sınır aşılırsa erken iptal (DoS koruması) |
-| Ses kitaplığı ekleme | Kaynak yolu beyaz listesi kontrolü |
-| Ses motoru | Karıştırma iş parçacığında kilit kapsamı genişletildi |
+| Ses kitaplığı ekleme | Kaynak yolu beyaz listesi ve desteklenen format kontrolü |
+| Ses motoru | Akış kaynakları voice bitince/iptal edilince tek sefer serbest bırakılır; kilit kapsamı dar tutulur |
 | Global kısayollar | Modül tanıtıcısı doğrulaması, `CallNextHookEx` sonucu iade edilir |
-| Tek örnek | `"Voxora_SingleInstance"` mutex ile çift çalıştırma engellenir |
+| Tek örnek | `"KayoneZSoundpad_SingleInstance"` mutex ile çift çalıştırma engellenir |
 
 ---
 

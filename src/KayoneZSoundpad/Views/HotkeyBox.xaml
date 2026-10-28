@@ -5,7 +5,7 @@
              FocusVisualStyle="{x:Null}">
     <Border Background="{DynamicResource Brush.Input}" BorderBrush="{DynamicResource Brush.InputBorder}"
             BorderThickness="1" CornerRadius="8" Padding="10,7" MinHeight="34" x:Name="Bd">
-        <TextBlock x:Name="Display" Text="Tıkla ve kısayol tuşlarına bas (Esc = temizle)"
+        <TextBlock x:Name="Display" Text="{DynamicResource Hotkey_Hint}"
                    Foreground="{DynamicResource Brush.TextMuted}" FontSize="12.5"
                    VerticalAlignment="Center"/>
     </Border>

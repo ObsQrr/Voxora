@@ -168,6 +168,38 @@ public class PlaybackManagerTests : IDisposable
     }
 
     [Fact]
+    public void MutedSound_StartsAtZeroVolume_ThenUnmuteRestores()
+    {
+        if (!HasRenderDevice()) return;
+
+        var settings = new SettingsService(System.IO.Path.Combine(_dir.Path, "s.json"));
+        using var engine = new AudioEngine();
+        engine.ApplyConfiguration(null, null, null, false, true, false, 1f, 1f, 0.25f, 50);
+        var playback = new PlaybackManager(engine, settings);
+
+        var sound = new SoundItem
+        {
+            Id = Guid.NewGuid(),
+            Name = "muted",
+            FilePath = WriteToneWav(_dir, "muted.wav", 3),
+            IsMuted = true,
+            Volume = 1f
+        };
+
+        playback.Trigger(sound);
+
+        var voice = engine.GetVoice(sound.Id);
+        Assert.NotNull(voice);
+        Assert.Equal(0f, voice!.Volume.Volume, 3);
+
+        // UI'da "sesi aç" → ses seviyesi geri gelir.
+        playback.UpdateVoiceVolume(sound.Id, sound.Volume);
+        Assert.Equal(1f, voice.Volume.Volume, 3);
+
+        playback.StopAll();
+    }
+
+    [Fact]
     public void UpdateVoiceVolume_ChangesLiveVolume()
     {
         if (!HasRenderDevice()) return;

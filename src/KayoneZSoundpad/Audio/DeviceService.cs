@@ -1,5 +1,6 @@
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
+using KayoneZSoundpad.Services;
 
 namespace KayoneZSoundpad.Audio;
 
@@ -7,11 +8,17 @@ namespace KayoneZSoundpad.Audio;
 public class DeviceEntry
 {
     public string Id { get; init; } = "";
+    /// <summary>Windows'un gerçek (yerelleştirilmiş) cihaz adı — eşleştirme için kullanılır.</summary>
+    public string OriginalName { get; init; } = "";
+    /// <summary>Kullanıcıya gösterilen ad (VB-CABLE için Voxora markalı).</summary>
     public string Name { get; init; } = "";
     public bool IsDefault { get; init; }
     public bool IsCable { get; init; }
 
-    public override string ToString() => Name + (IsDefault ? "  (varsayılan)" : "");
+    /// <summary>ComboBox'larda gösterilen metin: ad + varsayılan işareti (dile duyarlı).</summary>
+    public string DisplayName => Name + (IsDefault ? LocalizationService.T("Device_DefaultSuffix") : "");
+
+    public override string ToString() => DisplayName;
 }
 
 /// <summary>Windows ses aygıtı listesi, VB-CABLE tespiti ve aygıt değişikliği bildirimleri.</summary>
@@ -46,7 +53,7 @@ public class DeviceService : IDisposable
             foreach (var d in _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active))
             {
                 string originalName;
-                try { originalName = d.FriendlyName; } catch { originalName = "(bilinmeyen aygıt)"; }
+                try { originalName = d.FriendlyName; } catch { originalName = LocalizationService.T("Device_UnknownName"); }
 
                 // Kullanıcıya gösterilecek ad: VB-CABLE aygıtları için Voxora markalı isimler
                 string displayName = GetDisplayName(flow, originalName);
@@ -54,6 +61,7 @@ public class DeviceService : IDisposable
                 list.Add(new DeviceEntry
                 {
                     Id = d.ID,
+                    OriginalName = originalName,
                     Name = displayName,
                     IsDefault = d.ID == defaultId,
                     IsCable = IsCableName(originalName)
@@ -69,22 +77,17 @@ public class DeviceService : IDisposable
     /// Dahili cihaz adını kullanıcı dostu gösterim adına çevirir.
     /// Orijinal isim teknik eşleştirme için korunur (IsCableName orijinal ismi kullanır).
     /// </summary>
-    private static string GetDisplayName(DataFlow flow, string originalName)
+    internal static string GetDisplayName(DataFlow flow, string originalName)
     {
         var lower = originalName.ToLowerInvariant();
 
         // Çıkış aygıtları (Render) - Voxora'dan sanal kabloya giden ses
-        if (flow == DataFlow.Render)
-        {
-            if (lower.Contains("cable input") || lower.Contains("vb-audio virtual cable"))
-                return "Voxora In Audio";
-        }
+        if (flow == DataFlow.Render && lower.Contains("cable input"))
+            return "Voxora In Audio";
+
         // Giriş aygıtları (Capture) - Sanal kablodan Discord'a/oyuna giden ses
-        else if (flow == DataFlow.Capture)
-        {
-            if (lower.Contains("cable output") || lower.Contains("vb-audio virtual cable"))
-                return "Voxora Out Audio";
-        }
+        if (flow == DataFlow.Capture && lower.Contains("cable output"))
+            return "Voxora Out Audio";
 
         return originalName;
     }
@@ -96,12 +99,23 @@ public class DeviceService : IDisposable
                name.Contains("cable-audio") || name.Contains("virtual cable");
     }
 
-    /// <summary>VB-CABLE kurulu mu? (CABLE Output yakalama aygıtı aranır)</summary>
+    /// <summary>
+    /// VB-CABLE kurulu mu? (CABLE Output yakalama aygıtı aranır)
+    /// ÖNEMLİ: Gösterim adı Voxora markalı olduğu için eşleştirme daima OriginalName üzerinden yapılır.
+    /// </summary>
     public DeviceEntry? FindCableCapture()
-        => GetCaptureDevices().FirstOrDefault(d => d.Name.ToLowerInvariant().Contains("cable output"));
+    {
+        var captures = GetCaptureDevices();
+        return captures.FirstOrDefault(d => d.IsCable && d.OriginalName.ToLowerInvariant().Contains("cable output"))
+            ?? captures.FirstOrDefault(d => d.IsCable);
+    }
 
     public DeviceEntry? FindCableRender()
-        => GetRenderDevices().FirstOrDefault(d => d.Name.ToLowerInvariant().Contains("cable input"));
+    {
+        var renders = GetRenderDevices();
+        return renders.FirstOrDefault(d => d.IsCable && d.OriginalName.ToLowerInvariant().Contains("cable input"))
+            ?? renders.FirstOrDefault(d => d.IsCable);
+    }
 
     public DeviceEntry? FindById(DataFlow flow, string? id)
     {
@@ -123,6 +137,7 @@ public class DeviceService : IDisposable
             try { _enumerator.UnregisterEndpointNotificationCallback(_notificationClient); } catch { }
             _notificationClient = null;
         }
+        try { _enumerator.Dispose(); } catch { }
     }
 
     /// <summary>MMDeviceEnumerator'ın aygıt değişikliği bildirimini Action'a çevirir.</summary>

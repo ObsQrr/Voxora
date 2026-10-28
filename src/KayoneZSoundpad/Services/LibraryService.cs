@@ -8,6 +8,8 @@ public class LibraryService
 {
     private readonly string _path;
     private readonly object _saveLock = new();
+    private readonly object _timerLock = new();
+    private Timer? _saveTimer;
     public LibraryData Data { get; private set; } = new();
 
     public LibraryService(string? path = null)
@@ -24,6 +26,22 @@ public class LibraryService
     public void Save()
     {
         lock (_saveLock) JsonStore.Save(_path, Data);
+    }
+
+    /// <summary>
+    /// Sık değişen alanlar (ses seviyesi kaydırıcısı gibi) için 400 ms gecikmeli kayıt.
+    /// Böylece her kaydırma adımında diske yazılmaz, ama değişiklik kalıcı olur.
+    /// </summary>
+    public void ScheduleSave()
+    {
+        lock (_timerLock)
+        {
+            _saveTimer ??= new Timer(_ =>
+            {
+                try { Save(); } catch { /* geçici yazma hatası sonraki kayıtta düzelir */ }
+            }, null, Timeout.Infinite, Timeout.Infinite);
+            _saveTimer.Change(400, Timeout.Infinite);
+        }
     }
 
     public Category AddCategory(string name, string? color = null, string? icon = null)
@@ -59,7 +77,7 @@ public class LibraryService
     /// <summary>Dosya ekler; gerekirse kütüphane dizinine kopyalar. Hata fırlatabilir.</summary>
     public SoundItem AddSound(string filePath, Guid? categoryId, bool copyToLibrary, string? color = null, string? icon = null, string? displayName = null)
     {
-        if (!File.Exists(filePath)) throw new FileNotFoundException("Ses dosyası bulunamadı.", filePath);
+        if (!File.Exists(filePath)) throw new FileNotFoundException(LocalizationService.T("Err_SoundNotFound"), filePath);
 
         var target = filePath;
         if (copyToLibrary)

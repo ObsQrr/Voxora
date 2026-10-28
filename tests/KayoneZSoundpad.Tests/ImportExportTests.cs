@@ -1,4 +1,6 @@
 using System.IO;
+using System.IO.Compression;
+using System.Text;
 using Xunit;
 using KayoneZSoundpad.Models;
 using KayoneZSoundpad.Services;
@@ -86,6 +88,80 @@ public class ImportExportTests : IDisposable
         var settings = new SettingsService(System.IO.Path.Combine(_dir.Path, "s.json"));
         var importer = new ImportExportService(lib, settings);
         Assert.ThrowsAny<Exception>(() => importer.Import(notZip, copyToLibrary: false));
+    }
+
+    [Fact]
+    public void Import_ZipSlipEntry_DoesNotWriteOutsideRoot()
+    {
+        var zipPath = System.IO.Path.Combine(_dir.Path, "slip.zip");
+        var evilName = "voxora-zipslip-" + Guid.NewGuid().ToString("N") + ".wav";
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var evil = zip.CreateEntry("../" + evilName);
+            using (var s = evil.Open())
+                s.Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+
+            var manifest = zip.CreateEntry("library.json");
+            using var m = manifest.Open();
+            var json = Encoding.UTF8.GetBytes("{\"app\":\"Voxora\",\"version\":1,\"categories\":[],\"sounds\":[]}");
+            m.Write(json, 0, json.Length);
+        }
+
+        var lib = new LibraryService(System.IO.Path.Combine(_dir.Path, "l.json"));
+        var settings = new SettingsService(System.IO.Path.Combine(_dir.Path, "s.json"));
+        var importer = new ImportExportService(lib, settings);
+
+        Assert.Equal(0, importer.Import(zipPath));
+
+        // Zip-slip hedefi geçici dizinin ebeveyni olurdu.
+        Assert.False(File.Exists(System.IO.Path.Combine(System.IO.Path.GetTempPath(), evilName)));
+        Assert.False(File.Exists(System.IO.Path.Combine(_dir.Path, evilName)));
+    }
+
+    [Fact]
+    public void Import_DirectoryEntries_AreSkipped()
+    {
+        var src = MakeWav("dir.wav");
+        var lib = new LibraryService(System.IO.Path.Combine(_dir.Path, "l.json"));
+        var settings = new SettingsService(System.IO.Path.Combine(_dir.Path, "s.json"));
+        lib.AddSound(src, null, copyToLibrary: false, displayName: "Dizin Testi");
+
+        var exporter = new ImportExportService(lib, settings);
+        var zipPath = System.IO.Path.Combine(_dir.Path, "dir.zip");
+        Assert.Equal(1, exporter.Export(zipPath));
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Update))
+            zip.CreateEntry("files/bos-dizin/");
+
+        var lib2 = new LibraryService(System.IO.Path.Combine(_dir.Path, "l2.json"));
+        var importer = new ImportExportService(lib2, settings);
+        Assert.Equal(1, importer.Import(zipPath));
+        Assert.Single(lib2.Data.Sounds);
+    }
+
+    [Fact]
+    public void Import_CopyToLibraryFalse_StillCopiesToLibrary()
+    {
+        var src = MakeWav("copy.wav");
+        var lib = new LibraryService(System.IO.Path.Combine(_dir.Path, "l.json"));
+        var settings = new SettingsService(System.IO.Path.Combine(_dir.Path, "s.json"));
+        lib.AddSound(src, null, copyToLibrary: false, displayName: "Kopya Testi");
+
+        var exporter = new ImportExportService(lib, settings);
+        var zipPath = System.IO.Path.Combine(_dir.Path, "copy.zip");
+        exporter.Export(zipPath);
+
+        var lib2 = new LibraryService(System.IO.Path.Combine(_dir.Path, "l2.json"));
+        var importer = new ImportExportService(lib2, settings);
+
+        // Eski çağrı biçimi (false) geçici dizine işaret etmemeli; dosya kalıcı olmalı.
+        Assert.Equal(1, importer.Import(zipPath, copyToLibrary: false));
+
+        var imported = Assert.Single(lib2.Data.Sounds);
+        Assert.True(File.Exists(imported.FilePath));
+        Assert.StartsWith(System.IO.Path.GetFullPath(AppPaths.SoundsDir),
+            System.IO.Path.GetFullPath(imported.FilePath), StringComparison.OrdinalIgnoreCase);
     }
 }
 

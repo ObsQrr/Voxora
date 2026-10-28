@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using KayoneZSoundpad.Services;
 
 namespace KayoneZSoundpad.Audio;
 
@@ -12,14 +13,26 @@ public class PlaybackVoice
     public required Guid SoundId { get; init; }
     public required ISampleProvider Source { get; init; }
     public required VolumeSampleProvider Volume { get; init; }
+    /// <summary>Akış (streaming) çalarken serbest bırakılması gereken dosya kaynağı.</summary>
+    public IDisposable? Owner { get; init; }
     public bool IsPlaying { get; internal set; }
     public bool HoldRequested { get; set; } // basılı tutma modunda tuş hâlâ basılı mı
     public event Action<PlaybackVoice>? Stopped;
+
+    private int _sourceDisposed;
 
     internal void OnFinished()
     {
         IsPlaying = false;
         Stopped?.Invoke(this);
+    }
+
+    /// <summary>Akış kaynağını (dosya tutamacı) bir kez serbest bırakır.</summary>
+    internal void DisposeSource()
+    {
+        if (Interlocked.Exchange(ref _sourceDisposed, 1) != 0) return;
+        try { (Source as IDisposable)?.Dispose(); } catch { }
+        try { Owner?.Dispose(); } catch { }
     }
 }
 
@@ -150,7 +163,11 @@ public class AudioEngine : IDisposable
             _micProvider = null;
 
             bool mainOk = TryOpenOutput();
-            bool monOk = _monitorEnabled && TryOpenMonitor();
+            // Aynı aygıt hem ana çıkış hem lokal monitör olarak açılırsa
+            // Wasapi "endpoint is a duplicate" hatası verebilir; monitör gereksizdir.
+            bool monitorSameAsOutput = string.Equals(_monitorDeviceId, _outputDeviceId,
+                StringComparison.OrdinalIgnoreCase);
+            bool monOk = _monitorEnabled && !monitorSameAsOutput && TryOpenMonitor();
             TryOpenMic();
 
             // çıkış tamponunu önden doldur
@@ -163,9 +180,9 @@ public class AudioEngine : IDisposable
             _mixThread.Start();
 
             if (!mainOk)
-                EngineError?.Invoke("Çıkış aygıtı açılamadı. Ses yönlendirme şu an kapalı — ayarları kontrol edin.");
+                EngineError?.Invoke(LocalizationService.T("Err_OutputOpen"));
             else
-                EngineInfo?.Invoke("Ses motoru başlatıldı.");
+                EngineInfo?.Invoke(LocalizationService.T("Info_EngineStarted"));
         }
     }
 
@@ -181,7 +198,7 @@ public class AudioEngine : IDisposable
                     : _enumerator.GetDevice(_outputDeviceId);
             }
             catch { }
-            if (device == null) { EngineError?.Invoke("Seçilen çıkış aygıtı bulunamadı."); return false; }
+            if (device == null) { EngineError?.Invoke(LocalizationService.T("Err_OutputNotFound")); return false; }
 
             _outMain = new WasapiOut(device, AudioClientShareMode.Shared, useEventSync: true, _engineLatency);
             _outMain.Init(_bufMain!);
@@ -191,7 +208,7 @@ public class AudioEngine : IDisposable
         }
         catch (Exception ex)
         {
-            EngineError?.Invoke("Çıkış aygıtı başlatılamadı: " + ex.Message);
+            EngineError?.Invoke(LocalizationService.T("Err_OutputStart", ex.Message));
             _outMain = null;
             return false;
         }
@@ -231,7 +248,7 @@ public class AudioEngine : IDisposable
         {
             MMDevice device;
             try { device = _enumerator.GetDevice(_micDeviceId); }
-            catch { EngineError?.Invoke("Seçilen mikrofon bulunamadı."); return false; }
+            catch { EngineError?.Invoke(LocalizationService.T("Err_MicNotFound")); return false; }
 
             _bufMic = new BufferedWaveProvider(Stereo48k)
             {
@@ -252,7 +269,7 @@ public class AudioEngine : IDisposable
             _micCapture.RecordingStopped += (_, e) =>
             {
                 if (e.Exception != null && _running)
-                    EngineError?.Invoke("Mikrofon yakalama hatası: " + e.Exception.Message);
+                    EngineError?.Invoke(LocalizationService.T("Err_MicCapture", e.Exception.Message));
             };
             _micProvider = _bufMic.ToSampleProvider();
             _micCapture.StartRecording();
@@ -261,7 +278,7 @@ public class AudioEngine : IDisposable
         }
         catch (Exception ex)
         {
-            EngineError?.Invoke("Mikrofon başlatılamadı: " + ex.Message);
+            EngineError?.Invoke(LocalizationService.T("Err_MicStart", ex.Message));
             _micCapture = null;
             _micProvider = null;
             return false;
@@ -304,16 +321,22 @@ public class AudioEngine : IDisposable
     /// Ses çalar. Dönen voice durdurulabilir (voice.Stop() değil — StopVoice() kullanın).
     /// Retrigger davranışı çağıran taraf (UI/VM) iletişimle yönetir; motor yalnız ekler/kaldırır.
     /// </summary>
-    public PlaybackVoice? Play(Guid soundId, ISampleProvider source, float volume)
+    public PlaybackVoice? Play(Guid soundId, ISampleProvider source, float volume, IDisposable? owner = null)
     {
         PlaybackVoice? previous;
         PlaybackVoice? voice;
         lock (_lock)
         {
-            if (_fxMixer == null) return null;
+            if (_fxMixer == null)
+            {
+                // Motor kapalı: çağıran kaynağı serbest bırakabilsin diye owner döndürülmez.
+                try { (source as IDisposable)?.Dispose(); } catch { }
+                try { owner?.Dispose(); } catch { }
+                return null;
+            }
             previous = _voices.TryGetValue(soundId, out var old) ? old : null;
             var vol = new VolumeSampleProvider(source) { Volume = Math.Clamp(volume, 0f, 1.5f) };
-            voice = new PlaybackVoice { SoundId = soundId, Source = source, Volume = vol, IsPlaying = true };
+            voice = new PlaybackVoice { SoundId = soundId, Source = source, Volume = vol, Owner = owner, IsPlaying = true };
             _voices[soundId] = voice;
             voice.Stopped += v => { lock (_lock) { if (_voices.TryGetValue(soundId, out var cur) && cur == v) _voices.Remove(soundId); } };
             _fxMixer.AddMixerInput(vol);
@@ -324,19 +347,25 @@ public class AudioEngine : IDisposable
         return voice;
     }
 
-    /// <summary>Voice'u kademeli olarak durdurur.</summary>
+    /// <summary>Voice'u kademeli olarak durdurur ve akış kaynağını serbest bırakır.</summary>
     public void StopVoice(PlaybackVoice voice)
     {
+        bool stopped = false;
         lock (_lock)
         {
-            if (!voice.IsPlaying) return;
-            try { _fxMixer?.RemoveMixerInput(voice.Volume); } catch { }
-            voice.IsPlaying = false;
-            Interlocked.Decrement(ref _activeFxCount);
-            if (_voices.TryGetValue(voice.SoundId, out var cur) && cur == voice)
-                _voices.Remove(voice.SoundId);
+            if (voice.IsPlaying)
+            {
+                try { _fxMixer?.RemoveMixerInput(voice.Volume); } catch { }
+                voice.IsPlaying = false;
+                Interlocked.Decrement(ref _activeFxCount);
+                if (_voices.TryGetValue(voice.SoundId, out var cur) && cur == voice)
+                    _voices.Remove(voice.SoundId);
+                stopped = true;
+            }
         }
-        voice.OnFinished();
+        if (stopped)
+            voice.OnFinished();
+        voice.DisposeSource();
     }
 
     public bool IsPlaying(Guid soundId)
@@ -379,6 +408,7 @@ public class AudioEngine : IDisposable
             }
         }
         finished?.OnFinished();
+        finished?.DisposeSource();
     }
 
     // ---------------------------------------------------------------- önbellek
@@ -568,7 +598,11 @@ public class AudioEngine : IDisposable
     [DllImport("winmm.dll")]
     private static extern uint timeEndPeriod(uint ms);
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        Stop();
+        try { _enumerator.Dispose(); } catch { }
+    }
 }
 
 

@@ -6,7 +6,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Theme loaded by MainWindow -->
+                <!-- Uygulama geneli tema; ApplyTheme() açılışta doğru temayla değiştirir. -->
+                <ResourceDictionary Source="pack://application:,,,/Themes/Theme.Dark.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
             <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVis"/>

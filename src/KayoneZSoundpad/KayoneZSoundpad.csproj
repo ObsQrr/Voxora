@@ -12,7 +12,7 @@
     <AssemblyName>Voxora</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Product>Voxora</Product>
     <Company>Voxora</Company>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -27,6 +27,10 @@
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KayoneZSoundpad.Tests" />
   </ItemGroup>
 
   <ItemGroup>

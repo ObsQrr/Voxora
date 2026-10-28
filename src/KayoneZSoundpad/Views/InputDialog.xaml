@@ -6,11 +6,12 @@
         FontFamily="Segoe UI Variable Display, Segoe UI, Arial" FontSize="13.5"
         ShowInTaskbar="False" ResizeMode="NoResize">
     <StackPanel Margin="18">
-        <TextBlock x:Name="PromptText" Text="Ad:" Margin="0,0,0,8"/>
+        <TextBlock x:Name="PromptText" Text="{DynamicResource Input_DefaultPrompt}" Margin="0,0,0,8"/>
         <TextBox x:Name="InputBox" KeyDown="InputBox_KeyDown"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-            <Button Content="İptal" IsCancel="True" MinWidth="86"/>
-            <Button Content="Tamam" IsDefault="True" MinWidth="86" Margin="8,0,0,0" Style="{StaticResource AccentButton}" Click="Ok_Click"/>
+            <Button Content="{DynamicResource Common_Cancel}" IsCancel="True" MinWidth="86"/>
+            <Button Content="{DynamicResource Common_OK}" IsDefault="True" MinWidth="86" Margin="8,0,0,0"
+                    Style="{StaticResource AccentButton}" Click="Ok_Click"/>
         </StackPanel>
     </StackPanel>
 </Window>

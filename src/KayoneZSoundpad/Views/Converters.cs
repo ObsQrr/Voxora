@@ -32,11 +32,13 @@ public class MuteIconConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>bool → mute ipucu metni.</summary>
+/// <summary>bool → mute ipucu metni (dile duyarlı).</summary>
 public class MuteTipConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is true ? "Sesi aç" : "Sesi kıs";
+        => value is true
+            ? KayoneZSoundpad.Services.LocalizationService.T("Main_Unmute")
+            : KayoneZSoundpad.Services.LocalizationService.T("Main_Mute");
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

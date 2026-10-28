@@ -73,7 +73,7 @@ public class PlaybackManager
     {
         if (!sound.FileExists)
         {
-            PlaybackError?.Invoke(sound.Id, $"Dosya bulunamadı: {sound.FilePath}");
+            PlaybackError?.Invoke(sound.Id, LocalizationService.T("Err_FileNotFound", sound.FilePath));
             return;
         }
 
@@ -87,19 +87,22 @@ public class PlaybackManager
         {
             try
             {
-                source = SoundDecoder.ToEngineFormat(SoundDecoder.OpenFile(sound.FilePath));
+                // OpenFile zaten 48 kHz / stereo float formatına dönüştürür.
+                source = SoundDecoder.OpenFile(sound.FilePath);
             }
             catch (Exception ex)
             {
-                PlaybackError?.Invoke(sound.Id, $"Ses çözülemedi: {Path.GetFileName(sound.FilePath)} — {ex.Message}");
+                PlaybackError?.Invoke(sound.Id, LocalizationService.T("Err_DecodeFailed", Path.GetFileName(sound.FilePath), ex.Message));
                 return;
             }
         }
 
-        var voice = _engine.Play(sound.Id, source, sound.Volume);
+        // Sessiz (muted) sesler başlangıçta hiç ses çıkarmamalı.
+        float volume = sound.IsMuted ? 0f : sound.Volume;
+        var voice = _engine.Play(sound.Id, source, volume);
         if (voice == null)
         {
-            PlaybackError?.Invoke(sound.Id, "Ses motoru çalışmıyor — aygıt ayarlarını kontrol edin.");
+            PlaybackError?.Invoke(sound.Id, LocalizationService.T("Err_EngineNotRunning"));
             return;
         }
 
@@ -115,5 +118,8 @@ public class PlaybackManager
         var voice = _engine.GetVoice(soundId);
         if (voice != null) voice.Volume.Volume = Math.Clamp(volume, 0f, 1.5f);
     }
+
+    /// <summary>Dosyası değişen/silinen sesin bayat önbelleğini temizler.</summary>
+    public void EvictCache(Guid soundId) => _engine.EvictCache(soundId);
 }
 

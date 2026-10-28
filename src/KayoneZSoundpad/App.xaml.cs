@@ -32,34 +32,42 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Dil, herhangi bir metin üretilmeden önce yüklenmeli (varsayılan: Türkçe).
+        LocalizationService.Initialize(LocalizationService.Turkish);
+
         // tek örnek
         _singleInstanceMutex = new Mutex(true, "KayoneZSoundpad_SingleInstance", out var isNew);
         if (!isNew)
         {
-            System.Windows.MessageBox.Show("Voxora zaten çalışıyor (sistem tepsisine bakın).",
+            System.Windows.MessageBox.Show(LocalizationService.T("App_AlreadyRunning"),
                 "Voxora", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
 
-        // yakalanmayan hata -> gunege yaz, uygulama kapanmasin
+        // yakalanmayan hata -> günlüğe yaz, uygulama kapanmasın
         DispatcherUnhandledException += (_, args) =>
         {
             try
             {
                 System.IO.File.AppendAllText(
                     System.IO.Path.Combine(System.IO.Path.GetTempPath(), "voxora-ui.log"),
-                    DateTime.Now.ToString("HH:mm:ss.fff") + " DISPATCHER EXCEPTION: " + args.Exception.GetType().Name + ": " + args.Exception.Message + Environment.NewLine + args.Exception.StackTrace + Environment.NewLine + Environment.NewLine);
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " DISPATCHER EXCEPTION: " + args.Exception.ToString() + Environment.NewLine + Environment.NewLine);
             }
             catch { }
-            System.Windows.MessageBox.Show($"Beklenmeyen hata: {args.Exception.Message}\n\n{args.Exception.StackTrace}",
-                "Voxora - Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show(
+                LocalizationService.T("App_UnexpectedError", args.Exception.Message, args.Exception.StackTrace),
+                LocalizationService.T("App_ErrorTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
 
         AppPaths.EnsureDirs();
 
         var settingsService = new SettingsService();
+
+        // Kaydedilmiş dil tercihini uygula (varsayılan Türkçe korunur).
+        LocalizationService.Initialize(settingsService.Settings.Language);
+
         var libraryService = new LibraryService();
         var engine = new AudioEngine();
         var playback = new PlaybackManager(engine, settingsService);
@@ -95,17 +103,21 @@ public partial class App : System.Windows.Application
 
     public void ApplyTheme(string theme)
     {
+        // Tema tek yerde (uygulama kaynaklarında) tutulur. Pencerelerin kendi
+        // Theme.Dark sözlüğünü merge etmesi, açık temayı gölgeliyordu.
         var dicts = Resources.MergedDictionaries;
-        // stiller her zaman Dark'tan gelir; açık temada fırçalar Light ile ezer
         for (int i = dicts.Count - 1; i >= 0; i--)
-            if (dicts[i].Source?.OriginalString.Contains("Theme.Light") == true)
-                dicts.RemoveAt(i);
-
-        if (theme == "light")
         {
-            var light = new ResourceDictionary { Source = new Uri("Themes/Theme.Light.xaml", UriKind.Relative) };
-            dicts.Add(light);
+            var src = dicts[i].Source?.OriginalString ?? "";
+            if (src.Contains("Themes/Theme.Dark.xaml") || src.Contains("Themes/Theme.Light.xaml"))
+                dicts.RemoveAt(i);
         }
+
+        var dict = new ResourceDictionary
+        {
+            Source = new Uri(theme == "light" ? "Themes/Theme.Light.xaml" : "Themes/Theme.Dark.xaml", UriKind.Relative)
+        };
+        dicts.Add(dict);
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -114,9 +126,12 @@ public partial class App : System.Windows.Application
         {
             ViewModel.SaveSettings();
             ViewModel.Hotkeys.Dispose();
+            ViewModel.Dispose();
         }
         if (Paths != null)
         {
+            // bekleyen (debounce edilmiş) kütüphane değişikliklerini kaydet
+            try { Paths.LibraryService.Save(); } catch { }
             Paths.Engine.Dispose();
             Paths.Devices.Dispose();
         }
@@ -124,5 +139,3 @@ public partial class App : System.Windows.Application
         base.OnExit(e);
     }
 }
-
-

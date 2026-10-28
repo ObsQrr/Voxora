@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using KayoneZSoundpad.Services;
 
 namespace KayoneZSoundpad.Models;
 
@@ -47,10 +48,18 @@ public class HotkeyGesture : IEquatable<HotkeyGesture>
 
     private static string VkName(int vk) => vk switch
     {
-        0x01 => "Sol Tuş", 0x02 => "Sağ Tuş", 0x04 => "Orta Tuş",
+        0x01 => LocalizationService.T("Key_LeftMouse"),
+        0x02 => LocalizationService.T("Key_RightMouse"),
+        0x04 => LocalizationService.T("Key_MiddleMouse"),
+        0x25 => LocalizationService.T("Key_Left"),
+        0x26 => LocalizationService.T("Key_Up"),
+        0x27 => LocalizationService.T("Key_Right"),
+        0x28 => LocalizationService.T("Key_Down"),
+        0x5B => LocalizationService.T("Key_LeftWin"),
+        0x5C => LocalizationService.T("Key_RightWin"),
         >= 0x30 and <= 0x39 => ((char)vk).ToString(),                  // 0-9
         >= 0x41 and <= 0x5A => ((char)vk).ToString(),                  // A-Z
-        >= 0x60 and <= 0x69 => "Num " + (vk - 0x60),                   // Numpad0-9
+        >= 0x60 and <= 0x69 => LocalizationService.T("Key_NumPrefix") + (vk - 0x60), // Numpad0-9
         >= 0x70 and <= 0x87 => "F" + (vk - 0x70 + 1),                  // F1-F24
         _ => VkTable.TryGetValue(vk, out var n) ? n : "0x" + vk.ToString("X2")
     };

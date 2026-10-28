@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using KayoneZSoundpad.Services;
 using KayoneZSoundpad.ViewModels;
 
 namespace KayoneZSoundpad.Views;
@@ -12,12 +13,38 @@ public partial class CableGuideWindow : Window
     {
         InitializeComponent();
         _vm = vm;
+        UpdateTexts();
+        LocalizationService.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) => LocalizationService.LanguageChanged -= OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged() => UpdateTexts();
+
+    private void UpdateTexts()
+    {
+        var mic = _vm.GetSelectedCapture()?.Name ?? LocalizationService.T("Guide_NotFound");
+        SetOutputText.Text = LocalizationService.T("Guide_SetOutput", "Voxora In Audio");
+        SetInputText.Text = LocalizationService.T("Guide_SetInput", mic);
     }
 
     private void DownloadCable_Click(object sender, RoutedEventArgs e)
     {
         try { Process.Start(new ProcessStartInfo("https://vb-audio.com/Cable/") { UseShellExecute = true }); }
-        catch { System.Windows.MessageBox.Show("Tarayıcı açılamadı. Adres: https://vb-audio.com/Cable/", "Voxora"); }
+        catch
+        {
+            System.Windows.MessageBox.Show(LocalizationService.T("Settings_BrowserError"),
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void OpenSoundSettings_Click(object sender, RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo("ms-settings:sound") { UseShellExecute = true }); }
+        catch
+        {
+            System.Windows.MessageBox.Show(LocalizationService.T("Settings_SoundSettingsError"),
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private void AutoConfig_Click(object sender, RoutedEventArgs e)
@@ -26,38 +53,31 @@ public partial class CableGuideWindow : Window
         var cableOut = _vm.Devices.FindCableCapture();
         if (cableIn == null || cableOut == null)
         {
-            System.Windows.MessageBox.Show("Voxora sanal aygıtları bulunamadı. VB-CABLE kurup bilgisayarı yeniden başlat.",
+            System.Windows.MessageBox.Show(LocalizationService.T("Settings_AutoSetupMissing"),
                 "Voxora", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (!_vm.AutoConfigureCable())
         {
-            System.Windows.MessageBox.Show("Yönlendirme ayarlanamadı.", "Voxora",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show(LocalizationService.T("Settings_AutoSetupFailed"),
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var mic = _vm.CaptureDevices.FirstOrDefault(d => d.Id == _vm.Settings.MicDeviceId);
-        var mon = _vm.RenderDevices.FirstOrDefault(d => d.Id == _vm.Settings.MonitorDeviceId);
-        var monOn = _vm.Settings.MonitorEnabled;
-        var micOn = _vm.Settings.MicEnabled;
+        var s = _vm.Settings;
+        var mic = _vm.CaptureDevices.FirstOrDefault(d => d.Id == s.MicDeviceId)?.Name
+                  ?? LocalizationService.T("Guide_NotFound");
+        var mon = _vm.RenderDevices.FirstOrDefault(d => d.Id == s.MonitorDeviceId)?.Name
+                  ?? LocalizationService.T("Guide_NotFound");
 
         System.Windows.MessageBox.Show(
-            "✓ Yönlendirme kuruldu\n\n" +
-            "• Çıkış (kablo):  Voxora In Audio\n" +
-            "• Mikrofon:       " + (mic?.Name ?? "(bulunamadı)") + (micOn ? "" : "  [KAPALI]") + "\n" +
-            "• Lokal dinleme:  " + (mon?.Name ?? "(bulunamadı)") + (monOn ? "" : "  [KAPALI]") + "\n\n" +
-            "Şimdi Discord / Valorant gibi uygulamada\n" +
-            "GİRİŞ AYGITI olarak \"Voxora Out Audio\" seç.\n\n" +
-            "Not: Kendi mikrofonunu Discord'da doğrudan seçersen\n" +
-            "efektler duyulmaz — Voxora Out Audio seçmelisin.",
-            "Voxora — Mikrofon Yönlendirme Hazır", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private void OpenSoundSettings_Click(object sender, RoutedEventArgs e)
-    {
-        try { Process.Start(new ProcessStartInfo("ms-settings:sound") { UseShellExecute = true }); }
-        catch { System.Windows.MessageBox.Show("Ses ayarları açılamadı.", "Voxora"); }
+            LocalizationService.T("Guide_AutoReadyBody",
+                mic,
+                s.MicEnabled ? "" : LocalizationService.T("Guide_Off"),
+                mon,
+                s.MonitorEnabled ? "" : LocalizationService.T("Guide_Off")),
+            LocalizationService.T("Guide_AutoReadyTitle"),
+            MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }
