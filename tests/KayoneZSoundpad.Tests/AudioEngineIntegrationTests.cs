@@ -60,12 +60,10 @@ public class AudioEngineIntegrationTests : IDisposable
         engine.ApplyConfiguration(null, null, null, micEnabled: false, monitorEnabled: true,
             duckEnabled: false, micVolume: 1f, fxVolume: 1f, duckFactor: 0.25f, engineLatencyMs: 50);
 
-        // Motor başlatma hatası varsa (ör. aygıt format/event-sync desteklemiyorsa) testi geç
-        if (!string.IsNullOrEmpty(error))
-        {
-            engine.Stop();
-            return; // donanım uyumsuzluğu → test geçersiz sayılmaz
-        }
+        // Motor başlatma hatası varsa bu testte başarısız olmalıyız; aksi halde
+        // TryOpenOutput regresyonları sessizce gizlenir. Donanım yoksa yukarıdaki
+        // HasRenderDevice() kontrolü zaten testi atlar.
+        Assert.Null(error);
 
         var id = Guid.NewGuid();
         var cached = SoundDecoder.DecodeToCache(WriteToneWav("tone.wav", 1), 10 * 1024 * 1024);
@@ -84,7 +82,6 @@ public class AudioEngineIntegrationTests : IDisposable
 
         Assert.False(engine.IsPlaying(id), "Ses doğal olarak bitmeliydi");
         Assert.True(maxFxPeak > 0.01f, "Seviye göstergesi sinyal görmeliydi");
-        Assert.Null(error);
 
         engine.Stop();
     }

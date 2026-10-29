@@ -4,18 +4,27 @@ Windows ses efekti pedalı (soundboard) uygulaması. Ses efektlerini mikrofon y�
 
 ## Sürüm
 
-**v1.2.0** — .NET 8 / WPF / NAudio
+**v1.3.0** — .NET 8 / WPF / NAudio
 
 | Öğe | Değer |
 |-----|-------|
 | Uygulama | `Voxora.exe` |
-| Kurulum paketi | `Voxora-Setup.exe` (sürüm yayınlanınca üretilir) |
+| Kurulum paketi | `Voxora-Setup.exe` |
 | Arayüz dilleri | Türkçe (varsayılan), İngilizce |
-| Testler | 66/66 geçti (.NET 8, Release) |
-| Durum | v1.2.0 yerel olarak hazır; GitHub'a gönderim/etiketleme ayrı onay bekliyor |
+| Testler | 70/70 geçti (.NET 8, Release) |
+| Durum | v1.3.0 GitHub sürümü |
 
-> Bu sürüm henüz yayınlanmadığı için kurulum/EXE SHA-256 değerleri yer almaz.
-> Yayın paketleri üretildikten sonra hash'ler bu tabloya eklenecektir.
+> Sürüm paketlerinin SHA-256 değerleri GitHub Release sayfasında yer alır.
+
+### v1.3.0 Yenilikleri
+
+- **Sesler** düğmesi: kütüphanedeki ve `Sounds` klasöründeki tüm kişisel ses dosyalarını
+  meta veri eklemeden düz bir ZIP olarak dışa aktarır.
+- Kütüphane dosyası açılamazsa mevcut `library.json` artık ezilmez; kullanıcı uyarılır.
+- Kategori sağ tık menüsü, seçili olmayan kategoriye sağ tıklanınca da doğru çalışır.
+- ZIP içe aktarma boyut limitleri gerçek açılan baytlar üzerinden uygulanır.
+- Bozuk yedeklerdeki `null` kategori/ses listeleri güvenli biçimde reddedilir.
+- Yeni testler: kütüphane yükleme güvenliği, ses dosyası ZIP dışa aktarma.
 
 ### v1.2.0 Yenilikleri
 
@@ -224,8 +233,9 @@ Aşağıdaki güvenlik korumaları uygulanmıştır:
 | Alan | Koruma |
 |------|--------|
 | ZIP içe aktarma | Dizin traversal (zip-slip) koruması; her girişin hedef yolu geçici dizin içinde doğrulanır, dışarı taşan girişler atlanır |
-| ZIP kaynakları | Symlink/reparse-point girişleri atlanır; en fazla 5.000 giriş, toplam 2 GB, tek giriş 512 MB |
+| ZIP kaynakları | Symlink/reparse-point girişleri atlanır; en fazla 5.000 giriş, toplam 2 GB, tek giriş 512 MB — limitler gerçek açılan baytlar üzerinden uygulanır |
 | ZIP içe aktarma kopyası | Geçici çıkarma dizini silindiği için dosyalar her durumda kalıcı kitaplığa kopyalanır |
+| Kütüphane yükleme | `library.json` açılamazsa mevcut dosya ezilmez (`LoadSucceeded=false` → `Save` no-op) |
 | JSON serileştirme | `MaxDepth=64`, belge başına 32 MB üst sınır, büyük/küçük harf duyarlı üyeler, trailing comma/yorum kapalı |
 | Ses dosyası çözme | `maxBytes` sınırı; sınır aşılırsa erken iptal (DoS koruması) |
 | Ses kitaplığı ekleme | Kaynak yolu beyaz listesi ve desteklenen format kontrolü |

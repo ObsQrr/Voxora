@@ -69,6 +69,13 @@ public partial class App : System.Windows.Application
         LocalizationService.Initialize(settingsService.Settings.Language);
 
         var libraryService = new LibraryService();
+        if (!libraryService.LoadSucceeded)
+        {
+            System.Windows.MessageBox.Show(
+                LocalizationService.T("Library_LoadFailed", AppPaths.LibraryPath),
+                LocalizationService.T("App_ErrorTitle"),
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         var engine = new AudioEngine();
         var playback = new PlaybackManager(engine, settingsService);
         var hotkeys = new GlobalHotkeyService();
@@ -131,7 +138,7 @@ public partial class App : System.Windows.Application
         if (Paths != null)
         {
             // bekleyen (debounce edilmiş) kütüphane değişikliklerini kaydet
-            try { Paths.LibraryService.Save(); } catch { }
+            try { if (Paths.LibraryService.LoadSucceeded) Paths.LibraryService.Save(); } catch { }
             Paths.Engine.Dispose();
             Paths.Devices.Dispose();
         }

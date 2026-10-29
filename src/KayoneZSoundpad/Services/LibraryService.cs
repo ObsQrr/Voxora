@@ -9,13 +9,25 @@ public class LibraryService
     private readonly string _path;
     private readonly object _saveLock = new();
     private readonly object _timerLock = new();
+    private readonly bool _loadSucceeded;
     private Timer? _saveTimer;
     public LibraryData Data { get; private set; } = new();
+
+    /// <summary>
+    /// false ise mevcut library.json okunamadı (kilit/bozuk/çok büyük).
+    /// Bu durumda Save() no-op olur; kullanıcının mevcut dosyası ezilmez.
+    /// </summary>
+    public bool LoadSucceeded => _loadSucceeded;
 
     public LibraryService(string? path = null)
     {
         _path = path ?? AppPaths.LibraryPath;
-        Data = JsonStore.Load<LibraryData>(_path) ?? new LibraryData();
+        var fileExists = File.Exists(_path);
+        var loaded = JsonStore.Load<LibraryData>(_path);
+        _loadSucceeded = loaded != null || !fileExists;
+        Data = loaded ?? new LibraryData();
+        Data.Categories ??= new List<Category>();
+        Data.Sounds ??= new List<SoundItem>();
         // kopya olmayan kayıt durumunda sıralamayı garantiye al
         var next = Math.Max(Data.NextOrder, 1);
         foreach (var s in Data.Sounds) if (s.Order <= 0) s.Order = next++;
@@ -25,6 +37,7 @@ public class LibraryService
 
     public void Save()
     {
+        if (!_loadSucceeded) return; // yükleme başarısızsa mevcut dosyayı ezme
         lock (_saveLock) JsonStore.Save(_path, Data);
     }
 

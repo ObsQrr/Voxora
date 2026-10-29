@@ -163,6 +163,30 @@ public class ImportExportTests : IDisposable
         Assert.StartsWith(System.IO.Path.GetFullPath(AppPaths.SoundsDir),
             System.IO.Path.GetFullPath(imported.FilePath), StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void ExportSoundFiles_IncludesLibraryAndSoundsFolder_WithoutManifest()
+    {
+        var src = MakeWav("raw.wav");
+        Directory.CreateDirectory(AppPaths.SoundsDir);
+        var libraryFile = System.IO.Path.Combine(AppPaths.SoundsDir, "raw.wav");
+        var orphanFile = System.IO.Path.Combine(AppPaths.SoundsDir, "orphan.wav");
+        File.Copy(src, libraryFile, overwrite: true);
+        File.Copy(src, orphanFile, overwrite: true);
+
+        var lib = new LibraryService(System.IO.Path.Combine(_dir.Path, "l.json"));
+        var settings = new SettingsService(System.IO.Path.Combine(_dir.Path, "s.json"));
+        lib.AddSound(libraryFile, null, copyToLibrary: false, displayName: "Raw");
+
+        var zipPath = System.IO.Path.Combine(_dir.Path, "sounds.zip");
+        var exporter = new ImportExportService(lib, settings);
+        Assert.Equal(2, exporter.ExportSoundFiles(zipPath));
+
+        using var zip = ZipFile.OpenRead(zipPath);
+        var names = zip.Entries.Select(e => e.FullName).OrderBy(n => n).ToArray();
+        Assert.Equal(new[] { "orphan.wav", "raw.wav" }, names);
+        Assert.DoesNotContain("library.json", names);
+    }
 }
 
 

@@ -123,6 +123,44 @@ public class LibraryServiceTests : IDisposable
         Assert.False(LibraryService.IsSupportedFormat("a.exe"));
         Assert.False(LibraryService.IsSupportedFormat("a.txt"));
     }
+
+    [Fact]
+    public void CorruptLibrary_IsNotOverwrittenBySave()
+    {
+        File.WriteAllText(_libPath, "{ bozuk json");
+        var original = File.ReadAllText(_libPath);
+
+        var lib = new LibraryService(_libPath);
+        Assert.False(lib.LoadSucceeded);
+
+        lib.AddCategory("Deneme"); // Save() no-op olmalı
+        lib.Save();
+
+        Assert.Equal(original, File.ReadAllText(_libPath));
+        Assert.True(File.Exists(_libPath + ".corrupt"));
+    }
+
+    [Fact]
+    public void MissingLibrary_CanBeCreatedAndSaved()
+    {
+        var lib = new LibraryService(_libPath);
+        Assert.True(lib.LoadSucceeded);
+
+        lib.AddCategory("Yeni");
+        Assert.True(File.Exists(_libPath));
+    }
+
+    [Fact]
+    public void NullListsInJson_AreNormalized()
+    {
+        File.WriteAllText(_libPath, "{\"categories\":null,\"sounds\":null}");
+
+        var lib = new LibraryService(_libPath);
+
+        Assert.NotNull(lib.Data.Categories);
+        Assert.NotNull(lib.Data.Sounds);
+        Assert.Empty(lib.Data.Sounds);
+    }
 }
 
 

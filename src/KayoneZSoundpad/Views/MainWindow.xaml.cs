@@ -205,13 +205,34 @@ public partial class MainWindow : Window
             _vm.ExportLibrary(dlg.FileName);
     }
 
+    private void ExportSounds_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = LocalizationService.T("Dialog_SoundsZipFilter"),
+            FileName = $"voxora-sounds-{DateTime.Now:yyyyMMdd}.zip",
+            Title = LocalizationService.T("Dialog_SelectSoundsZipTitle")
+        };
+        if (dlg.ShowDialog() == true)
+            _vm.ExportSoundFiles(dlg.FileName);
+    }
+
     private void CategoryList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
-        // Sağ tıklanan öğeyi seç: menü her zaman tıklanan kategoriye uygulanmalı.
-        if (e.OriginalSource is ListBoxItem item && item.DataContext is CategoryEntry clicked)
+        // Sağ tıklanan kategoriyi seç. ContextMenu artık DataTemplate içindeki
+        // Grid'e bağlı olduğu için OriginalSource ListBoxItem değil Grid/TextBlock olur.
+        if (e.OriginalSource is FrameworkElement fe && fe.DataContext is CategoryEntry clicked)
+        {
+            if (clicked.Id is null || clicked.Id == Guid.Empty)
+            {
+                e.Handled = true; // Tüm Sesler / Favoriler düzenlenemez
+                return;
+            }
             CategoryList.SelectedItem = clicked;
+            return;
+        }
 
-        // "Tüm Sesler" ve "Favoriler" yeniden adlandırılamaz/silinemez.
+        // Boş alana sağ tıklandıysa mevcut seçim geçerli değilse menüyü gösterme.
         if (_vm.SelectedCategory == null || _vm.SelectedCategory.Id is null || _vm.SelectedCategory.Id == Guid.Empty)
             e.Handled = true;
     }

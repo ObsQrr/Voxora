@@ -117,6 +117,8 @@ public class ImportExportService
             var manifestPath = Path.Combine(tempDir, "library.json");
             var data = JsonStore.Load<ExportData>(manifestPath);
             if (data == null) throw new InvalidDataException(LocalizationService.T("Import_InvalidBackup"));
+            if (data.Categories == null || data.Sounds == null)
+                throw new InvalidDataException(LocalizationService.T("Import_InvalidBackup"));
 
             // kategorileri taşı (aynı id varsa dokunma)
             foreach (var c in data.Categories)
@@ -161,6 +163,64 @@ public class ImportExportService
         }
     }
 
+    /// <summary>
+    /// Kullanıcının kendi ses dosyalarını (kütüphanedekiler + Sounds klasöründekiler)
+    /// düz bir ZIP olarak dışa aktarır. library.json/settings.json eklenmez.
+    /// </summary>
+    public int ExportSoundFiles(string zipPath)
+    {
+        var files = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string path)
+        {
+            if (!File.Exists(path) || !LibraryService.IsSupportedFormat(path)) return;
+            if (seen.Add(Path.GetFullPath(path))) files.Add(path);
+        }
+
+        foreach (var s in _library.Data.Sounds) Add(s.FilePath);
+        if (Directory.Exists(AppPaths.SoundsDir))
+            foreach (var f in Directory.EnumerateFiles(AppPaths.SoundsDir, "*", SearchOption.TopDirectoryOnly))
+                Add(f);
+
+        if (files.Count == 0) return 0;
+
+        var targetFull = Path.GetFullPath(zipPath);
+        if (files.Any(f => string.Equals(Path.GetFullPath(f), targetFull, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException(LocalizationService.T("Export_TargetIsSoundFile"));
+
+        var dir = Path.GetDirectoryName(targetFull);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        var tmpZip = zipPath + ".tmp";
+        if (File.Exists(tmpZip)) File.Delete(tmpZip);
+        try
+        {
+            using (var zip = ZipFile.Open(tmpZip, ZipArchiveMode.Create))
+            {
+                var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in files)
+                {
+                    var name = Path.GetFileName(file);
+                    if (!usedNames.Add(name))
+                    {
+                        var stem = Path.GetFileNameWithoutExtension(file);
+                        var ext = Path.GetExtension(file);
+                        int n = 1;
+                        do { name = $"{stem} ({n++}){ext}"; }
+                        while (!usedNames.Add(name));
+                    }
+                    zip.CreateEntryFromFile(file, name, CompressionLevel.Optimal);
+                }
+            }
+            File.Move(tmpZip, zipPath, overwrite: true);
+            return files.Count;
+        }
+        finally
+        {
+            try { if (File.Exists(tmpZip)) File.Delete(tmpZip); } catch { }
+        }
+    }
+
     private static void ExtractSafely(string zipPath, string tempDir)
     {
         if (!File.Exists(zipPath)) throw new FileNotFoundException(zipPath);
@@ -181,13 +241,9 @@ public class ImportExportService
             if (entry.Length < 0 || entry.Length > MaxSingleEntry)
                 throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
 
-            total += entry.Length;
-            if (total > MaxTotalUncompressed)
-                throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
-
-            // library.json manifesti için ayrıca boyut sınırı.
-            if (string.Equals(entry.FullName.Replace('\\', '/'), "library.json", StringComparison.OrdinalIgnoreCase)
-                && entry.Length > MaxLibraryJson)
+            var isManifest = string.Equals(entry.FullName.Replace('\\', '/'), "library.json",
+                StringComparison.OrdinalIgnoreCase);
+            if (isManifest && entry.Length > MaxLibraryJson)
                 throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
 
             var destinationPath = ResolveInside(tempDir, entry.FullName);
@@ -195,7 +251,31 @@ public class ImportExportService
 
             var dir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            entry.ExtractToFile(destinationPath, overwrite: true);
+            ExtractEntry(entry, destinationPath, isManifest, ref total);
+        }
+    }
+
+    /// <summary>
+    /// Girişi gerçek yazılan baytları sayarak çıkarır. ZIP metadata'sındaki
+    /// Length değeri kötü niyetli arşivlerde düşük gösterilebilir; bu yüzden
+    /// limitler açılan gerçek veri üzerinden uygulanır.
+    /// </summary>
+    private static void ExtractEntry(ZipArchiveEntry entry, string destinationPath,
+        bool isManifest, ref long total)
+    {
+        using var input = entry.Open();
+        using var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        var buffer = new byte[81920];
+        long entryBytes = 0;
+        int read;
+        while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            entryBytes += read;
+            total += read;
+            if (entryBytes > MaxSingleEntry || total > MaxTotalUncompressed ||
+                (isManifest && entryBytes > MaxLibraryJson))
+                throw new InvalidDataException(LocalizationService.T("Import_TooLarge"));
+            output.Write(buffer, 0, read);
         }
     }
 

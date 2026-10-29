@@ -600,6 +600,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// <summary>Tüm kişisel ses dosyalarını (meta veri olmadan) ZIP olarak dışa aktarır.</summary>
+    public void ExportSoundFiles(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            int exported = _importExport.ExportSoundFiles(path);
+            if (exported == 0)
+                NotifyInfo?.Invoke(LocalizationService.T("Notify_ExportSoundsEmpty"));
+            else
+                NotifyInfo?.Invoke(LocalizationService.T("Notify_ExportSoundsDone", exported, path));
+        }
+        catch (Exception ex)
+        {
+            NotifyError?.Invoke(LocalizationService.T("Notify_ExportSoundsFailed", ex.Message));
+        }
+    }
+
     public event Action? AddFilesRequested;
     public event Action? AddFolderRequested;
     public event Action? AddCategoryRequested;
