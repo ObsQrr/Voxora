@@ -30,6 +30,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly PlaybackManager _playback;
     private readonly GlobalHotkeyService _hotkeys;
     private readonly DeviceService _devices;
+    private readonly UpdateService _updates;
     private readonly ImportExportService _importExport;
     private readonly Action<float, float> _onLevels;
     private readonly Action<string> _onEngineError;
@@ -76,6 +77,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public GlobalHotkeyService Hotkeys => _hotkeys;
     public DeviceService Devices => _devices;
     public SettingsService SettingsService => _settingsService;
+    public UpdateService Updates => _updates;
+
+    /// <summary>Son güncelleme kontrolünün sonucu (Settings penceresi için).</summary>
+    public UpdateCheckResult? LastUpdateResult { get; private set; }
+
+    /// <summary>Yeni sürüm bulunduğunda ana pencere banner'ı için tetiklenir.</summary>
+    public event Action<UpdateCheckResult>? UpdateAvailable;
 
     public void SaveSettings() => _settingsService.Save();
 
@@ -92,7 +100,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public event Action<string>? NotifyError;
 
     public MainViewModel(SettingsService settingsService, LibraryService library,
-        AudioEngine engine, PlaybackManager playback, GlobalHotkeyService hotkeys, DeviceService devices)
+        AudioEngine engine, PlaybackManager playback, GlobalHotkeyService hotkeys, DeviceService devices,
+        UpdateService updates)
     {
         _settingsService = settingsService;
         _library = library;
@@ -100,6 +109,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _playback = playback;
         _hotkeys = hotkeys;
         _devices = devices;
+        _updates = updates;
         _importExport = new ImportExportService(library, settingsService);
         _selectedCategory = new CategoryEntry { Name = LocalizationService.T("Category_All"), Icon = "🎧", Id = null };
 
@@ -375,6 +385,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             Settings.FxVolume,
             Settings.DuckFactor,
             Settings.EngineLatencyMs);
+    }
+
+    public void ApplyUpdateCheckResult(UpdateCheckResult result)
+    {
+        LastUpdateResult = result;
+        if (result.Status == UpdateCheckStatus.UpdateAvailable)
+            UpdateAvailable?.Invoke(result);
     }
 
     // Not: ComboBox'ta SelectedValue iki yönlü bağlı olduğu için Settings.* zaten

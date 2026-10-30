@@ -221,6 +221,36 @@
                     </StackPanel>
                 </Border>
 
+                <!-- GÜNCELLEMELER -->
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Settings_Updates}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="{DynamicResource Settings_CurrentVersion}" Width="160" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="CurrentVersionText" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="CheckUpdatesCheck"
+                                  Content="{DynamicResource Settings_CheckForUpdates}" Margin="0,0,0,10"
+                                  AutomationProperties.Name="{DynamicResource Settings_CheckForUpdates}"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button x:Name="CheckUpdatesButton" Content="{DynamicResource Settings_CheckNow}"
+                                    Padding="14,8" Click="CheckUpdates_Click"
+                                    AutomationProperties.Name="{DynamicResource Settings_CheckNow}"/>
+                            <Button x:Name="DownloadUpdateButton" Content="{DynamicResource Settings_DownloadUpdate}"
+                                    Padding="14,8" Margin="8,0,0,0" Visibility="Collapsed"
+                                    Click="DownloadUpdate_Click"
+                                    AutomationProperties.Name="{DynamicResource Settings_DownloadUpdate}"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="UpdateStatusText" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Brush.TextSecondary}" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- HAKKINDA -->
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">

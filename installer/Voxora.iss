@@ -2,7 +2,7 @@
 ; Derleme: ISCC.exe installer\Voxora.iss  →  dist\Voxora-Setup.exe
 
 #define MyAppName "Voxora"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "Voxora"
 #define MyAppExeName "Voxora.exe"
 

@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,6 +22,7 @@ public partial class MainWindow : Window
     private Forms.ContextMenuStrip? _trayMenu;
     private bool _closingToExit;
     private bool _uiReady;
+    private UpdateCheckResult? _availableUpdate;
     private readonly DispatcherTimer _meterTimer;
 
     public MainWindow(MainViewModel vm)
@@ -67,6 +69,7 @@ public partial class MainWindow : Window
         _vm.NotifyError += msg => ShowBalloon(msg, Forms.ToolTipIcon.Error);
         _vm.FilterApplied += UpdateEmptyState;
         _vm.Sounds.CollectionChanged += (_, _) => UpdateEmptyState();
+        _vm.UpdateAvailable += ShowUpdateBanner;
 
         _vm.Playback.PlaybackError += (id, msg) => Dispatcher.BeginInvoke(() =>
         {
@@ -393,6 +396,8 @@ public partial class MainWindow : Window
         BuildTrayMenu();
         UpdateEmptyState();
         RefreshDeviceSelections();
+        if (UpdateBanner.Visibility == Visibility.Visible)
+            RefreshUpdateBannerText();
     }
 
     protected override void OnStateChanged(EventArgs e)
@@ -419,6 +424,7 @@ public partial class MainWindow : Window
     {
         _meterTimer.Stop();
         LocalizationService.LanguageChanged -= OnLanguageChanged;
+        _vm.UpdateAvailable -= ShowUpdateBanner;
         _tray?.Dispose();
         _tray = null;
         base.OnClosed(e);
@@ -430,5 +436,37 @@ public partial class MainWindow : Window
     private void ShowBalloon(string msg, Forms.ToolTipIcon icon)
     {
         _tray?.ShowBalloonTip(3000, "Voxora", msg, icon);
+    }
+
+    private void ShowUpdateBanner(UpdateCheckResult result)
+    {
+        _availableUpdate = result;
+        UpdateBanner.Visibility = Visibility.Visible;
+        RefreshUpdateBannerText();
+        ShowBalloon(UpdateBannerText.Text, Forms.ToolTipIcon.Info);
+    }
+
+    private void RefreshUpdateBannerText()
+    {
+        if (_availableUpdate?.LatestVersion is not { } version) return;
+        UpdateBannerText.Text = LocalizationService.T("Update_Banner", version.ToString(3));
+    }
+
+    private void UpdateBannerDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_availableUpdate?.ReleaseUrl)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(_availableUpdate.ReleaseUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowBalloon(LocalizationService.T("Update_BrowserError", ex.Message), Forms.ToolTipIcon.Error);
+        }
+    }
+
+    private void UpdateBannerClose_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateBanner.Visibility = Visibility.Collapsed;
     }
 }

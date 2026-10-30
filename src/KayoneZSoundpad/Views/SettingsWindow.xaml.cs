@@ -1,4 +1,6 @@
 using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using KayoneZSoundpad.Audio;
@@ -12,6 +14,9 @@ public partial class SettingsWindow : Window
 {
     private readonly MainViewModel _vm;
     private readonly App _app;
+    private readonly CancellationTokenSource _updateCts = new();
+    private UpdateCheckResult? _lastUpdateResult;
+    private bool _updateCheckRunning;
     private bool _closed;
 
     public SettingsWindow(MainViewModel vm)
@@ -31,6 +36,8 @@ public partial class SettingsWindow : Window
         CopyCheck.IsChecked = s.CopyOnImport;
         BehaviorCombo.SelectedIndex = (int)s.DefaultBehavior;
         SuppressCheck.IsChecked = s.SuppressHotkeys;
+        CheckUpdatesCheck.IsChecked = s.CheckForUpdates;
+        CurrentVersionText.Text = $"v{VersionText}";
 
         LatencySlider.Value = s.EngineLatencyMs;
         LatencyLabel.Text = $"{s.EngineLatencyMs} ms";
@@ -50,10 +57,17 @@ public partial class SettingsWindow : Window
         _vm.CaptureDevices.CollectionChanged += OnDevicesChanged;
 
         UpdateAbout();
+        if (_vm.LastUpdateResult is { } cached)
+        {
+            _lastUpdateResult = cached;
+            ShowUpdateResult(cached);
+        }
+        Loaded += OnLoaded;
         LocalizationService.LanguageChanged += OnLanguageChanged;
         Closed += (_, _) =>
         {
             _closed = true;
+            _updateCts.Cancel();
             LocalizationService.LanguageChanged -= OnLanguageChanged;
             _vm.RenderDevices.CollectionChanged -= OnDevicesChanged;
             _vm.CaptureDevices.CollectionChanged -= OnDevicesChanged;
@@ -69,6 +83,102 @@ public partial class SettingsWindow : Window
         OutputCombo.SelectedValue = s.OutputDeviceId;
         MicCombo.SelectedValue = s.MicDeviceId;
         MonitorCombo.SelectedValue = s.MonitorDeviceId;
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs e) => await AutoCheckUpdatesAsync();
+
+    private async Task AutoCheckUpdatesAsync()
+    {
+        if (_vm.LastUpdateResult != null) return;
+        if (!_vm.Settings.CheckForUpdates)
+        {
+            UpdateStatusText.Text = LocalizationService.T("Settings_UpdateDisabled");
+            return;
+        }
+
+        var last = _vm.Settings.LastUpdateCheckUtc;
+        if (last is { } lastUtc && DateTime.UtcNow - lastUtc < TimeSpan.FromDays(1))
+        {
+            UpdateStatusText.Text = LocalizationService.T("Settings_UpdateNotChecked");
+            return;
+        }
+
+        await RunUpdateCheckAsync();
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e) => await RunUpdateCheckAsync();
+
+    private async Task RunUpdateCheckAsync()
+    {
+        if (_updateCheckRunning) return;
+        _updateCheckRunning = true;
+        CheckUpdatesButton.IsEnabled = false;
+        DownloadUpdateButton.Visibility = Visibility.Collapsed;
+        UpdateStatusText.Text = LocalizationService.T("Settings_Checking");
+
+        try
+        {
+            var result = await _vm.Updates.CheckAsync(UpdateService.GetCurrentVersion(), _updateCts.Token);
+            if (_closed) return;
+
+            _lastUpdateResult = result;
+            if (result.Status != UpdateCheckStatus.Failed)
+            {
+                _vm.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                _vm.SaveSettings();
+                _vm.ApplyUpdateCheckResult(result);
+            }
+            ShowUpdateResult(result);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!_closed)
+                UpdateStatusText.Text = LocalizationService.T("Settings_UpdateFailed", ex.Message);
+        }
+        finally
+        {
+            if (!_closed)
+            {
+                _updateCheckRunning = false;
+                CheckUpdatesButton.IsEnabled = true;
+            }
+        }
+    }
+
+    private void ShowUpdateResult(UpdateCheckResult result)
+    {
+        if (result.Status == UpdateCheckStatus.UpdateAvailable)
+        {
+            UpdateStatusText.Text = LocalizationService.T("Settings_UpdateAvailable",
+                result.LatestVersion?.ToString(3) ?? "");
+            DownloadUpdateButton.Visibility = Visibility.Visible;
+        }
+        else if (result.Status == UpdateCheckStatus.UpToDate)
+        {
+            UpdateStatusText.Text = LocalizationService.T("Settings_UpToDate");
+            DownloadUpdateButton.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            UpdateStatusText.Text = LocalizationService.T("Settings_UpdateFailed", result.Error ?? "");
+            DownloadUpdateButton.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void DownloadUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        var url = _lastUpdateResult?.ReleaseUrl;
+        if (string.IsNullOrEmpty(url)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(LocalizationService.T("Update_BrowserError", ex.Message),
+                "Voxora", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private static string VersionText
@@ -91,6 +201,9 @@ public partial class SettingsWindow : Window
     {
         if (_closed) return;
         UpdateAbout();
+        CurrentVersionText.Text = $"v{VersionText}";
+        if (_lastUpdateResult != null) ShowUpdateResult(_lastUpdateResult);
+        else if (!_updateCheckRunning) UpdateStatusText.Text = LocalizationService.T("Settings_UpdateNotChecked");
         RefreshDeviceSelections();
     }
 
@@ -155,6 +268,7 @@ public partial class SettingsWindow : Window
         s.CopyOnImport = CopyCheck.IsChecked == true;
         s.DefaultBehavior = (PlaybackBehavior)BehaviorCombo.SelectedIndex;
         s.SuppressHotkeys = SuppressCheck.IsChecked == true;
+        s.CheckForUpdates = CheckUpdatesCheck.IsChecked == true;
         s.EngineLatencyMs = (int)LatencySlider.Value;
         s.MaxCacheMb = (int)CacheSlider.Value;
         s.DuckMicWhilePlaying = DuckCheck.IsChecked == true;

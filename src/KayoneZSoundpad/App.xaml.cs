@@ -26,6 +26,7 @@ public partial class App : System.Windows.Application
         public PlaybackManager Playback { get; init; } = null!;
         public GlobalHotkeyService Hotkeys { get; init; } = null!;
         public DeviceService Devices { get; init; } = null!;
+        public UpdateService UpdateService { get; init; } = null!;
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -80,6 +81,7 @@ public partial class App : System.Windows.Application
         var playback = new PlaybackManager(engine, settingsService);
         var hotkeys = new GlobalHotkeyService();
         var devices = new DeviceService();
+        var updates = new UpdateService();
 
         Paths = new AppPathsHolder
         {
@@ -88,10 +90,11 @@ public partial class App : System.Windows.Application
             Engine = engine,
             Playback = playback,
             Hotkeys = hotkeys,
-            Devices = devices
+            Devices = devices,
+            UpdateService = updates
         };
 
-        ViewModel = new MainViewModel(settingsService, libraryService, engine, playback, hotkeys, devices);
+        ViewModel = new MainViewModel(settingsService, libraryService, engine, playback, hotkeys, devices, updates);
 
         ApplyTheme(settingsService.Settings.Theme);
 
@@ -106,6 +109,33 @@ public partial class App : System.Windows.Application
         // motor + kısayollar
         ViewModel.ApplyEngineConfig();
         ViewModel.RegisterAllHotkeys();
+
+        // Güncelleme kontrolü arka planda; açılışı bloklamaz.
+        _ = CheckForUpdatesOnStartupAsync();
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            if (ViewModel == null || !ViewModel.Settings.CheckForUpdates) return;
+
+            var last = ViewModel.Settings.LastUpdateCheckUtc;
+            if (last is { } lastUtc && DateTime.UtcNow - lastUtc < TimeSpan.FromDays(1))
+                return;
+
+            var result = await ViewModel.Updates.CheckAsync(UpdateService.GetCurrentVersion());
+            if (result.Status == UpdateCheckStatus.Failed)
+                return; // geçici ağ hatasında bir sonraki açılışta tekrar dene
+
+            ViewModel.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
+            ViewModel.SaveSettings();
+            ViewModel.ApplyUpdateCheckResult(result);
+        }
+        catch
+        {
+            // güncelleme kontrolü uygulamayı asla etkilememeli
+        }
     }
 
     public void ApplyTheme(string theme)
@@ -141,6 +171,7 @@ public partial class App : System.Windows.Application
             try { if (Paths.LibraryService.LoadSucceeded) Paths.LibraryService.Save(); } catch { }
             Paths.Engine.Dispose();
             Paths.Devices.Dispose();
+            Paths.UpdateService.Dispose();
         }
         _singleInstanceMutex?.Dispose();
         base.OnExit(e);

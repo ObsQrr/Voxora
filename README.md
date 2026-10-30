@@ -4,17 +4,25 @@ Windows ses efekti pedalı (soundboard) uygulaması. Ses efektlerini mikrofon y�
 
 ## Sürüm
 
-**v1.3.0** — .NET 8 / WPF / NAudio
+**v1.4.0** — .NET 8 / WPF / NAudio
 
 | Öğe | Değer |
 |-----|-------|
 | Uygulama | `Voxora.exe` |
 | Kurulum paketi | `Voxora-Setup.exe` |
 | Arayüz dilleri | Türkçe (varsayılan), İngilizce |
-| Testler | 70/70 geçti (.NET 8, Release) |
-| Durum | v1.3.0 GitHub sürümü |
+| Testler | 80/80 geçti (.NET 8, Release) |
+| Durum | v1.4.0 GitHub sürümü |
 
 > Sürüm paketlerinin SHA-256 değerleri GitHub Release sayfasında yer alır.
+
+### v1.4.0 Yenilikleri
+
+- **Otomatik güncelleme kontrolü:** Açılışta günde en fazla bir kez GitHub Releases kontrol edilir.
+- Yeni sürüm bulununca ana pencerenin üstünde **uyarı şeridi** ve tepsi bildirimi görünür.
+- Ayarlar → Güncellemeler bölümünde mevcut sürüm, **“Güncellemeyi Kontrol Et”** düğmesi ve indirme bağlantısı yer alır.
+- Otomatik kontrol Ayarlar'dan kapatılabilir; manuel kontrol her zaman kullanılabilir.
+- Güncelleme yalnızca bildirilir; sessiz indirme/kurulum yapılmaz.
 
 ### v1.3.0 Yenilikleri
 
@@ -190,7 +198,8 @@ KayoneZSoundpad/
 │       │   ├── LibraryService.cs   # Ses kitaplığı yönetimi + gecikmeli kayıt
 │       │   ├── LocalizationService.cs  # Türkçe/İngilizce metinler ve dil değiştirme
 │       │   ├── PlaybackManager.cs  # Çalma davranışları, önbellek/akış seçimi
-│       │   └── SettingsService.cs  # Ayar yükleme/kaydetme ve doğrulama
+│       │   ├── SettingsService.cs  # Ayar yükleme/kaydetme ve doğrulama
+│       │   └── UpdateService.cs    # GitHub Releases güncelleme kontrolü
 │       ├── Themes/
 │       │   ├── Theme.Dark.xaml     # Koyu tema kaynakları
 │       │   └── Theme.Light.xaml    # Açık tema kaynakları
@@ -220,6 +229,7 @@ KayoneZSoundpad/
 │       ├── PlaybackManagerTests.cs
 │       ├── SettingsLanguageTests.cs
 │       ├── ThemeResourceTests.cs
+│       ├── UpdateServiceTests.cs
 │       └── TestConfig.cs
 └── dist/                       # Derleme çıktısı (git'e dahil edilmez)
 ```
@@ -242,6 +252,7 @@ Aşağıdaki güvenlik korumaları uygulanmıştır:
 | Ses motoru | Akış kaynakları voice bitince/iptal edilince tek sefer serbest bırakılır; kilit kapsamı dar tutulur |
 | Global kısayollar | Modül tanıtıcısı doğrulaması, `CallNextHookEx` sonucu iade edilir |
 | Tek örnek | `"KayoneZSoundpad_SingleInstance"` mutex ile çift çalıştırma engellenir |
+| Güncelleme kontrolü | Yalnızca GitHub Releases API'sine okuma isteği; token yok, kişisel veri gönderilmez |
 
 ---
 

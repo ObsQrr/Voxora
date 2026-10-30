@@ -20,6 +20,10 @@ public class AppSettings
     [JsonPropertyName("defaultBehavior")] public PlaybackBehavior DefaultBehavior { get; set; } = PlaybackBehavior.Restart;
     [JsonPropertyName("suppressHotkeys")] public bool SuppressHotkeys { get; set; } = true;
 
+    // Güncellemeler
+    [JsonPropertyName("checkForUpdates")] public bool CheckForUpdates { get; set; } = true;
+    [JsonPropertyName("lastUpdateCheckUtc")] public DateTime? LastUpdateCheckUtc { get; set; }
+
     // Ses aygıtları (MMDevice Id)
     [JsonPropertyName("outputDeviceId")] public string? OutputDeviceId { get; set; }
     [JsonPropertyName("micDeviceId")] public string? MicDeviceId { get; set; }
