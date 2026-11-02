@@ -20,6 +20,9 @@ public class AppSettings
     [JsonPropertyName("defaultBehavior")] public PlaybackBehavior DefaultBehavior { get; set; } = PlaybackBehavior.Restart;
     [JsonPropertyName("suppressHotkeys")] public bool SuppressHotkeys { get; set; } = true;
 
+    /// <summary>2.0 özellik anahtarları; eksik anahtar katalog varsayılanını kullanır.</summary>
+    [JsonPropertyName("features")] public Dictionary<string, bool> Features { get; set; } = new();
+
     // Güncellemeler
     [JsonPropertyName("checkForUpdates")] public bool CheckForUpdates { get; set; } = true;
     [JsonPropertyName("lastUpdateCheckUtc")] public DateTime? LastUpdateCheckUtc { get; set; }

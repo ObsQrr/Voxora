@@ -221,6 +221,32 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ÖZELLİK YÖNETİMİ -->
+                <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Settings_Features}" Style="{StaticResource SectionLabel}" Margin="0,0,0,6"/>
+                        <TextBlock Text="{DynamicResource Settings_FeaturesDescription}" FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                        <ItemsControl x:Name="FeaturesList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,10">
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                  AutomationProperties.Name="{Binding Name}"/>
+                                        <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource Brush.TextSecondary}" Margin="24,2,0,0"/>
+                                        <TextBlock Text="{Binding RestartHint}" FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource Brush.TextMuted}" Margin="24,2,0,0"
+                                                   Visibility="{Binding ShowRestartHint, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- GÜNCELLEMELER -->
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">

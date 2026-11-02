@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using KayoneZSoundpad.Audio;
+using KayoneZSoundpad.Features;
 using KayoneZSoundpad.Hotkeys;
 using KayoneZSoundpad.Models;
 using KayoneZSoundpad.Services;
@@ -31,6 +32,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly GlobalHotkeyService _hotkeys;
     private readonly DeviceService _devices;
     private readonly UpdateService _updates;
+    private readonly FeatureService _features;
     private readonly ImportExportService _importExport;
     private readonly Action<float, float> _onLevels;
     private readonly Action<string> _onEngineError;
@@ -78,6 +80,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public DeviceService Devices => _devices;
     public SettingsService SettingsService => _settingsService;
     public UpdateService Updates => _updates;
+    public FeatureService Features => _features;
+
+    public bool IsSmartSearchEnabled => _features.IsEnabled(FeatureId.SmartSoundSearch);
 
     /// <summary>Son güncelleme kontrolünün sonucu (Settings penceresi için).</summary>
     public UpdateCheckResult? LastUpdateResult { get; private set; }
@@ -101,7 +106,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public MainViewModel(SettingsService settingsService, LibraryService library,
         AudioEngine engine, PlaybackManager playback, GlobalHotkeyService hotkeys, DeviceService devices,
-        UpdateService updates)
+        UpdateService updates, FeatureService features)
     {
         _settingsService = settingsService;
         _library = library;
@@ -110,6 +115,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _hotkeys = hotkeys;
         _devices = devices;
         _updates = updates;
+        _features = features;
         _importExport = new ImportExportService(library, settingsService);
         _selectedCategory = new CategoryEntry { Name = LocalizationService.T("Category_All"), Icon = "🎧", Id = null };
 
@@ -141,6 +147,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         _hotkeys.HotkeyPressed += OnHotkeyPressed;
         _hotkeys.HotkeyReleased += OnHotkeyReleased;
+        _features.FeatureChanged += OnFeatureChanged;
         LocalizationService.LanguageChanged += OnLanguageChanged;
 
         LoadSounds();
@@ -264,6 +271,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         RefreshDevices();
         foreach (var c in Sounds) c.RefreshAll();
         OnPropertyChanged(nameof(CableStatusText));
+    }
+
+    private void OnFeatureChanged(object? sender, FeatureChangedEventArgs e)
+    {
+        if (_disposed) return;
+        if (e.Feature == FeatureId.SmartSoundSearch && !e.Enabled)
+            SearchText = "";
+        OnPropertyChanged(nameof(IsSmartSearchEnabled));
     }
 
     // ------------------------------------------------------------ kısayollar
@@ -647,6 +662,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_disposed) return;
         _disposed = true;
         LocalizationService.LanguageChanged -= OnLanguageChanged;
+        _features.FeatureChanged -= OnFeatureChanged;
         _engine.Levels -= _onLevels;
         _engine.EngineError -= _onEngineError;
         _engine.EngineInfo -= _onEngineInfo;

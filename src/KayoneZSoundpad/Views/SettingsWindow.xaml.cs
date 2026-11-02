@@ -4,6 +4,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using KayoneZSoundpad.Audio;
+using KayoneZSoundpad.Features;
 using KayoneZSoundpad.Models;
 using KayoneZSoundpad.Services;
 using KayoneZSoundpad.ViewModels;
@@ -15,6 +16,7 @@ public partial class SettingsWindow : Window
     private readonly MainViewModel _vm;
     private readonly App _app;
     private readonly CancellationTokenSource _updateCts = new();
+    private readonly List<FeatureToggleViewModel> _featureToggles = new();
     private UpdateCheckResult? _lastUpdateResult;
     private bool _updateCheckRunning;
     private bool _closed;
@@ -38,6 +40,10 @@ public partial class SettingsWindow : Window
         SuppressCheck.IsChecked = s.SuppressHotkeys;
         CheckUpdatesCheck.IsChecked = s.CheckForUpdates;
         CurrentVersionText.Text = $"v{VersionText}";
+
+        foreach (var definition in _vm.Features.Definitions)
+            _featureToggles.Add(new FeatureToggleViewModel(_vm.Features, definition));
+        FeaturesList.ItemsSource = _featureToggles;
 
         LatencySlider.Value = s.EngineLatencyMs;
         LatencyLabel.Text = $"{s.EngineLatencyMs} ms";
@@ -202,6 +208,7 @@ public partial class SettingsWindow : Window
         if (_closed) return;
         UpdateAbout();
         CurrentVersionText.Text = $"v{VersionText}";
+        foreach (var feature in _featureToggles) feature.RefreshText();
         if (_lastUpdateResult != null) ShowUpdateResult(_lastUpdateResult);
         else if (!_updateCheckRunning) UpdateStatusText.Text = LocalizationService.T("Settings_UpdateNotChecked");
         RefreshDeviceSelections();
@@ -278,6 +285,9 @@ public partial class SettingsWindow : Window
         if (OutputCombo.SelectedItem is DeviceEntry outDev) s.OutputDeviceId = outDev.Id;
         if (MicCombo.SelectedItem is DeviceEntry micDev) s.MicDeviceId = micDev.Id;
         if (MonitorCombo.SelectedItem is DeviceEntry monDev) s.MonitorDeviceId = monDev.Id;
+
+        foreach (var feature in _featureToggles)
+            feature.Apply();
 
         AutoStartService.SetEnabled(AutoStartCheck.IsChecked == true);
 

@@ -27,6 +27,7 @@ public class SettingsService
         // Bilinmeyen tema → varsayılan açık tema; bilinmeyen dil → varsayılan Türkçe.
         if (s.Theme is not ("light" or "dark")) s.Theme = "light";
         s.Language = LocalizationService.Normalize(s.Language);
+        s.Features ??= new Dictionary<string, bool>();
     }
 
     public void Save()

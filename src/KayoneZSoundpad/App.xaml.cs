@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading;
 using System.Windows;
 using KayoneZSoundpad.Audio;
+using KayoneZSoundpad.Features;
 using KayoneZSoundpad.Hotkeys;
 using KayoneZSoundpad.Services;
 using KayoneZSoundpad.ViewModels;
@@ -82,6 +83,7 @@ public partial class App : System.Windows.Application
         var hotkeys = new GlobalHotkeyService();
         var devices = new DeviceService();
         var updates = new UpdateService();
+        var features = new FeatureService(settingsService);
 
         Paths = new AppPathsHolder
         {
@@ -94,7 +96,7 @@ public partial class App : System.Windows.Application
             UpdateService = updates
         };
 
-        ViewModel = new MainViewModel(settingsService, libraryService, engine, playback, hotkeys, devices, updates);
+        ViewModel = new MainViewModel(settingsService, libraryService, engine, playback, hotkeys, devices, updates, features);
 
         ApplyTheme(settingsService.Settings.Theme);
 
