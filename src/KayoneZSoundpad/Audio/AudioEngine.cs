@@ -66,7 +66,9 @@ public class AudioEngine : IDisposable
     private BufferedWaveProvider? _bufMain;
     private BufferedWaveProvider? _bufMonitor;
     private BufferedWaveProvider? _bufMic;
+    private ISampleProvider? _micSource;
     private ISampleProvider? _micProvider;
+    private VoiceChangerSettings _voiceChanger = new();
     private MixingSampleProvider? _fxMixer;
 
     // Karıştırma iş parçacığı
@@ -133,6 +135,52 @@ public class AudioEngine : IDisposable
         }
     }
 
+    public void ApplyVoiceChanger(VoiceChangerSettings settings)
+    {
+        var copy = settings.Clone();
+        copy.Normalize();
+
+        lock (_lock)
+        {
+            if (_voiceChanger.ValueEquals(copy)) return;
+            _voiceChanger = copy;
+            if (_running && _micSource != null)
+                _micProvider = BuildVoiceChain(_micSource, copy);
+        }
+    }
+
+    /// <summary>
+    /// Mikrofon örnek akışına gerçek DSP zincirini kurar. Etkin değilse kaynağı
+    /// olduğu gibi döndürür; böylece gereksiz gecikme/CPU oluşmaz.
+    /// </summary>
+    internal static ISampleProvider BuildVoiceChain(ISampleProvider source, VoiceChangerSettings settings)
+    {
+        if (!settings.Enabled) return source;
+
+        ISampleProvider chain = source;
+        if (settings.PitchSemitones != 0)
+        {
+            chain = new SmbPitchShiftingSampleProvider(chain)
+            {
+                PitchFactor = (float)Math.Pow(2, settings.PitchSemitones / 12.0)
+            };
+        }
+
+        if (settings.Telephone)
+        {
+            chain = new BiquadSampleProvider(chain, BiquadKind.HighPass, 300f);
+            chain = new BiquadSampleProvider(chain, BiquadKind.LowPass, 3400f);
+        }
+
+        if (settings.RobotMix > 0.001f)
+            chain = new RingModSampleProvider(chain, 55f, settings.RobotMix);
+
+        if (settings.EchoMix > 0.001f)
+            chain = new EchoSampleProvider(chain, settings.EchoDelayMs, settings.EchoMix);
+
+        return chain;
+    }
+
     public void Start()
     {
         lock (_lock)
@@ -160,6 +208,7 @@ public class AudioEngine : IDisposable
                 ReadFully = true
             };
             _bufMic = null;
+            _micSource = null;
             _micProvider = null;
 
             bool mainOk = TryOpenOutput();
@@ -244,9 +293,9 @@ public class AudioEngine : IDisposable
     private bool TryOpenMic()
     {
         if (_micDeviceId == null) return false;
+        MMDevice? device = null;
         try
         {
-            MMDevice device;
             try { device = _enumerator.GetDevice(_micDeviceId); }
             catch { EngineError?.Invoke(LocalizationService.T("Err_MicNotFound")); return false; }
 
@@ -271,15 +320,21 @@ public class AudioEngine : IDisposable
                 if (e.Exception != null && _running)
                     EngineError?.Invoke(LocalizationService.T("Err_MicCapture", e.Exception.Message));
             };
-            _micProvider = _bufMic.ToSampleProvider();
+            _micSource = _bufMic.ToSampleProvider();
+            _micProvider = BuildVoiceChain(_micSource, _voiceChanger);
             _micCapture.StartRecording();
             device.Dispose();
+            device = null;
             return true;
         }
         catch (Exception ex)
         {
             EngineError?.Invoke(LocalizationService.T("Err_MicStart", ex.Message));
+            try { _micCapture?.StopRecording(); } catch { }
+            try { _micCapture?.Dispose(); } catch { }
+            try { device?.Dispose(); } catch { }
             _micCapture = null;
+            _micSource = null;
             _micProvider = null;
             return false;
         }
@@ -303,6 +358,7 @@ public class AudioEngine : IDisposable
                 _micCapture = null;
             }
             _micProvider = null;
+            _micSource = null;
             _fxMixer = null;
             _bufMain = _bufMonitor = _bufMic = null;
             try { timeEndPeriod(1); } catch { }

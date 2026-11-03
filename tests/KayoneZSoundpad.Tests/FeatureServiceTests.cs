@@ -36,6 +36,7 @@ public class FeatureServiceTests : IDisposable
         Assert.True(features.IsEnabled(FeatureId.MiniMode));
         Assert.False(features.IsEnabled(FeatureId.AiSoundAssistant));
         Assert.True(features.IsEnabled(FeatureId.CommunitySoundPacks));
+        Assert.True(features.IsEnabled(FeatureId.VoiceChanger));
     }
 
     [Fact]

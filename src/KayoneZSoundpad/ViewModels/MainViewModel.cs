@@ -83,6 +83,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public FeatureService Features => _features;
 
     public bool IsSmartSearchEnabled => _features.IsEnabled(FeatureId.SmartSoundSearch);
+    public bool IsVoiceChangerEnabled => _features.IsEnabled(FeatureId.VoiceChanger);
 
     /// <summary>Son güncelleme kontrolünün sonucu (Settings penceresi için).</summary>
     public UpdateCheckResult? LastUpdateResult { get; private set; }
@@ -278,7 +279,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_disposed) return;
         if (e.Feature == FeatureId.SmartSoundSearch && !e.Enabled)
             SearchText = "";
+        if (e.Feature == FeatureId.VoiceChanger)
+            ApplyEngineConfig();
         OnPropertyChanged(nameof(IsSmartSearchEnabled));
+        OnPropertyChanged(nameof(IsVoiceChangerEnabled));
     }
 
     // ------------------------------------------------------------ kısayollar
@@ -400,6 +404,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             Settings.FxVolume,
             Settings.DuckFactor,
             Settings.EngineLatencyMs);
+
+        var voice = Settings.VoiceChanger.Clone();
+        if (!IsVoiceChangerEnabled) voice.Enabled = false;
+        _engine.ApplyVoiceChanger(voice);
     }
 
     public void ApplyUpdateCheckResult(UpdateCheckResult result)

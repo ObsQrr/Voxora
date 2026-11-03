@@ -17,6 +17,7 @@ public partial class SettingsWindow : Window
     private readonly App _app;
     private readonly CancellationTokenSource _updateCts = new();
     private readonly List<FeatureToggleViewModel> _featureToggles = new();
+    private bool _voiceInitializing;
     private UpdateCheckResult? _lastUpdateResult;
     private bool _updateCheckRunning;
     private bool _closed;
@@ -40,6 +41,17 @@ public partial class SettingsWindow : Window
         SuppressCheck.IsChecked = s.SuppressHotkeys;
         CheckUpdatesCheck.IsChecked = s.CheckForUpdates;
         CurrentVersionText.Text = $"v{VersionText}";
+
+        _voiceInitializing = true;
+        VoiceEnabledCheck.IsChecked = s.VoiceChanger.Enabled;
+        VoicePresetCombo.SelectedIndex = (int)s.VoiceChanger.Preset;
+        VoicePitchSlider.Value = s.VoiceChanger.PitchSemitones;
+        VoiceRobotSlider.Value = s.VoiceChanger.RobotMix;
+        VoiceEchoSlider.Value = s.VoiceChanger.EchoMix;
+        VoiceDelaySlider.Value = s.VoiceChanger.EchoDelayMs;
+        VoiceTelephoneCheck.IsChecked = s.VoiceChanger.Telephone;
+        _voiceInitializing = false;
+        UpdateVoiceLabels();
 
         foreach (var definition in _vm.Features.Definitions)
             _featureToggles.Add(new FeatureToggleViewModel(_vm.Features, definition));
@@ -264,6 +276,62 @@ public partial class SettingsWindow : Window
         if (DuckLabel != null) DuckLabel.Text = $"%{Math.Round(e.NewValue * 100)}";
     }
 
+    private void VoicePreset_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_voiceInitializing) return;
+        var preset = SelectedVoicePreset();
+        if (preset == VoiceChangerPreset.Custom) return;
+
+        var settings = VoiceChangerSettings.ForPreset(preset);
+        VoiceEnabledCheck.IsChecked = settings.Enabled;
+        VoicePitchSlider.Value = settings.PitchSemitones;
+        VoiceRobotSlider.Value = settings.RobotMix;
+        VoiceEchoSlider.Value = settings.EchoMix;
+        VoiceDelaySlider.Value = settings.EchoDelayMs;
+        VoiceTelephoneCheck.IsChecked = settings.Telephone;
+        UpdateVoiceLabels();
+    }
+
+    private void VoicePitch_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateVoiceLabels();
+    private void VoiceRobot_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateVoiceLabels();
+    private void VoiceEcho_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateVoiceLabels();
+    private void VoiceDelay_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateVoiceLabels();
+
+    private void VoiceReset_Click(object sender, RoutedEventArgs e)
+    {
+        var defaults = new VoiceChangerSettings();
+        _voiceInitializing = true;
+        try
+        {
+            VoiceEnabledCheck.IsChecked = defaults.Enabled;
+            VoicePresetCombo.SelectedIndex = (int)defaults.Preset;
+            VoicePitchSlider.Value = defaults.PitchSemitones;
+            VoiceRobotSlider.Value = defaults.RobotMix;
+            VoiceEchoSlider.Value = defaults.EchoMix;
+            VoiceDelaySlider.Value = defaults.EchoDelayMs;
+            VoiceTelephoneCheck.IsChecked = defaults.Telephone;
+        }
+        finally
+        {
+            _voiceInitializing = false;
+        }
+        UpdateVoiceLabels();
+    }
+
+    private void UpdateVoiceLabels()
+    {
+        if (VoicePitchLabel != null) VoicePitchLabel.Text = ((int)VoicePitchSlider.Value).ToString();
+        if (VoiceRobotLabel != null) VoiceRobotLabel.Text = $"%{Math.Round(VoiceRobotSlider.Value * 100)}";
+        if (VoiceEchoLabel != null) VoiceEchoLabel.Text = $"%{Math.Round(VoiceEchoSlider.Value * 100)}";
+        if (VoiceDelayLabel != null) VoiceDelayLabel.Text = $"{(int)VoiceDelaySlider.Value} ms";
+    }
+
+    private VoiceChangerPreset SelectedVoicePreset()
+        => VoicePresetCombo.SelectedItem is ComboBoxItem item
+           && Enum.TryParse<VoiceChangerPreset>(item.Tag as string, out var preset)
+            ? preset
+            : VoiceChangerPreset.Custom;
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         var s = _vm.Settings;
@@ -281,6 +349,15 @@ public partial class SettingsWindow : Window
         s.DuckMicWhilePlaying = DuckCheck.IsChecked == true;
         s.DuckFactor = (float)DuckSlider.Value;
         s.StopAllHotkey = StopAllHotkeyBox.Value;
+
+        s.VoiceChanger.Enabled = VoiceEnabledCheck.IsChecked == true;
+        s.VoiceChanger.Preset = SelectedVoicePreset();
+        s.VoiceChanger.PitchSemitones = (int)VoicePitchSlider.Value;
+        s.VoiceChanger.RobotMix = (float)VoiceRobotSlider.Value;
+        s.VoiceChanger.EchoMix = (float)VoiceEchoSlider.Value;
+        s.VoiceChanger.EchoDelayMs = (int)VoiceDelaySlider.Value;
+        s.VoiceChanger.Telephone = VoiceTelephoneCheck.IsChecked == true;
+        s.VoiceChanger.Normalize();
 
         if (OutputCombo.SelectedItem is DeviceEntry outDev) s.OutputDeviceId = outDev.Id;
         if (MicCombo.SelectedItem is DeviceEntry micDev) s.MicDeviceId = micDev.Id;

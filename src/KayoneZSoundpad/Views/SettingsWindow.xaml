@@ -247,6 +247,86 @@
                     </StackPanel>
                 </Border>
 
+                <!-- SES DEĞİŞTİRİCİ -->
+                <Border x:Name="VoiceChangerPanel"
+                        Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
+                        BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16"
+                        Visibility="{Binding IsVoiceChangerEnabled, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Settings_VoiceChanger}" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+
+                        <CheckBox x:Name="VoiceEnabledCheck" Content="{DynamicResource Settings_VoiceChangerEnable}"
+                                  Margin="0,0,0,10"
+                                  AutomationProperties.Name="{DynamicResource Settings_VoiceChangerEnable}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="{DynamicResource Settings_VoicePreset}" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <ComboBox x:Name="VoicePresetCombo" Grid.Column="1" Width="220" Margin="0,0,0,10"
+                                      SelectionChanged="VoicePreset_SelectionChanged"
+                                      AutomationProperties.Name="{DynamicResource Settings_VoicePreset}">
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Natural}" Tag="Natural"/>
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Chipmunk}" Tag="Chipmunk"/>
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Deep}" Tag="Deep"/>
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Robot}" Tag="Robot"/>
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Echo}" Tag="Echo"/>
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Telephone}" Tag="Telephone"/>
+                                <ComboBoxItem Content="{DynamicResource VoicePreset_Custom}" Tag="Custom"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Text="{DynamicResource Settings_VoicePitch}" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                <Slider x:Name="VoicePitchSlider" Width="220" Minimum="-12" Maximum="12" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" ValueChanged="VoicePitch_ValueChanged"/>
+                                <TextBlock x:Name="VoicePitchLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Text="0"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="2" Text="{DynamicResource Settings_VoiceRobot}" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                <Slider x:Name="VoiceRobotSlider" Width="220" Minimum="0" Maximum="1" TickFrequency="0.05"
+                                        IsSnapToTickEnabled="True" ValueChanged="VoiceRobot_ValueChanged"/>
+                                <TextBlock x:Name="VoiceRobotLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Text="0%"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="3" Text="{DynamicResource Settings_VoiceEcho}" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                <Slider x:Name="VoiceEchoSlider" Width="220" Minimum="0" Maximum="1" TickFrequency="0.05"
+                                        IsSnapToTickEnabled="True" ValueChanged="VoiceEcho_ValueChanged"/>
+                                <TextBlock x:Name="VoiceEchoLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Text="0%"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="4" Text="{DynamicResource Settings_VoiceDelay}" VerticalAlignment="Center" Margin="0,0,16,10"/>
+                            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                <Slider x:Name="VoiceDelaySlider" Width="220" Minimum="50" Maximum="500" TickFrequency="10"
+                                        IsSnapToTickEnabled="True" ValueChanged="VoiceDelay_ValueChanged"/>
+                                <TextBlock x:Name="VoiceDelayLabel" Style="{StaticResource Muted}" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Text="160 ms"/>
+                            </StackPanel>
+
+                            <CheckBox x:Name="VoiceTelephoneCheck" Grid.Row="5" Grid.ColumnSpan="2"
+                                      Content="{DynamicResource Settings_VoiceTelephone}" Margin="0,0,0,8"/>
+                        </Grid>
+
+                        <Button Content="{DynamicResource Settings_VoiceReset}" HorizontalAlignment="Left"
+                                Padding="12,7" Click="VoiceReset_Click"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- GÜNCELLEMELER -->
                 <Border Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Divider}"
                         BorderThickness="1" CornerRadius="10" Padding="20" Margin="0,0,0,16">

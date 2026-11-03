@@ -34,7 +34,9 @@ public static class FeatureCatalog
         new FeatureDefinition(FeatureId.AiSoundAssistant,
             "Feature_AiSoundAssistant_Name", "Feature_AiSoundAssistant_Desc", DefaultEnabled: false),
         new FeatureDefinition(FeatureId.CommunitySoundPacks,
-            "Feature_CommunitySoundPacks_Name", "Feature_CommunitySoundPacks_Desc", DefaultEnabled: true)
+            "Feature_CommunitySoundPacks_Name", "Feature_CommunitySoundPacks_Desc", DefaultEnabled: true),
+        new FeatureDefinition(FeatureId.VoiceChanger,
+            "Feature_VoiceChanger_Name", "Feature_VoiceChanger_Desc", DefaultEnabled: true)
     };
 
     private static readonly Dictionary<FeatureId, FeatureDefinition> ById = All.ToDictionary(d => d.Id);

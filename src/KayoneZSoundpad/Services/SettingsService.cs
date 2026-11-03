@@ -1,4 +1,5 @@
 using System.IO;
+using KayoneZSoundpad.Audio;
 using KayoneZSoundpad.Models;
 
 namespace KayoneZSoundpad.Services;
@@ -28,6 +29,8 @@ public class SettingsService
         if (s.Theme is not ("light" or "dark")) s.Theme = "light";
         s.Language = LocalizationService.Normalize(s.Language);
         s.Features ??= new Dictionary<string, bool>();
+        s.VoiceChanger ??= new VoiceChangerSettings();
+        s.VoiceChanger.Normalize();
     }
 
     public void Save()

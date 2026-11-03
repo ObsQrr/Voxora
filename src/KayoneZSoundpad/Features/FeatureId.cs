@@ -10,5 +10,6 @@ public enum FeatureId
     MacroSoundboard,
     MiniMode,
     AiSoundAssistant,
-    CommunitySoundPacks
+    CommunitySoundPacks,
+    VoiceChanger
 }

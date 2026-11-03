@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using KayoneZSoundpad.Audio;
 using KayoneZSoundpad.Models;
 
 namespace KayoneZSoundpad.Models;
@@ -22,6 +23,9 @@ public class AppSettings
 
     /// <summary>2.0 özellik anahtarları; eksik anahtar katalog varsayılanını kullanır.</summary>
     [JsonPropertyName("features")] public Dictionary<string, bool> Features { get; set; } = new();
+
+    // Ses değiştirici (mikrofon hattı)
+    [JsonPropertyName("voiceChanger")] public VoiceChangerSettings VoiceChanger { get; set; } = new();
 
     // Güncellemeler
     [JsonPropertyName("checkForUpdates")] public bool CheckForUpdates { get; set; } = true;
