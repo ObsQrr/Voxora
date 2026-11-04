@@ -139,7 +139,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             if (_disposed) return;
             RefreshDevices();
-            NotifyInfo?.Invoke(LocalizationService.T("Notify_DevicesChanged"));
+            // Bilinçli olarak tray bildirimi YOK: bazı sürücüler aynı olayı sık
+            // yayınlıyor ve sol altta bildirim fırtınasına dönüşüyordu. Ray
+            // durumu ve cihaz listeleri sessizce tazelenir.
         });
 
         _engine.Levels += _onLevels;

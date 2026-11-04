@@ -4,17 +4,32 @@ Windows ses efekti pedalı (soundboard) uygulaması. Ses efektlerini mikrofon y�
 
 ## Sürüm
 
-**v1.4.0** — .NET 8 / WPF / NAudio
+**v2.0.0** — .NET 8 / WPF / NAudio
 
 | Öğe | Değer |
 |-----|-------|
 | Uygulama | `Voxora.exe` |
-| Kurulum paketi | `Voxora-Setup.exe` |
+| Kurulum paketi | `Voxora-2.0.0-setup.exe` |
+| Taşınabilir | `Voxora-v2.0.0-win-x64.zip` |
 | Arayüz dilleri | Türkçe (varsayılan), İngilizce |
-| Testler | 80/80 geçti (.NET 8, Release) |
-| Durum | v1.4.0 GitHub sürümü |
+| Testler | 115/115 geçti (.NET 8, Release) |
+| Durum | v2.0.0 GitHub sürümü |
 
 > Sürüm paketlerinin SHA-256 değerleri GitHub Release sayfasında yer alır.
+
+### v2.0.0 Yenilikleri
+
+- **Konsol arayüzü:** ana pencere, kartlar, miks masası ve Ayarlar baştan yazıldı;
+  koyu/açık tema, yeni tipografi ve animasyonlar (giriş, hover, çalan kart, sayfa geçişi).
+- **Kurulum sonrası sihirbaz:** dil, tema, ses yönlendirmesi, gerçek test tonu ve
+  Windows cihaz adları; TR/EN canlı önizleme.
+- **Windows cihaz adları:** `CABLE Input/Output` isteğe bağlı olarak (UAC ile)
+  **Voxora In Audio / Voxora Out Audio** yapılır; Discord da bu adı görür.
+- **Ses değiştirici:** gerçek DSP ile pitch, robot, yankı ve telefon efektleri.
+- **Özellik anahtarları:** tamamlanmamış modüller YAKINDA, akıllı arama BETA rozetiyle.
+- **Düzeltme:** aygıt olayları birleştirildi; "ses aygıtları değişti" bildirim fırtınası
+  kaldırıldı (bildirim artık gösterilmiyor, liste sessizce tazeleniyor).
+- `Ctrl+K` arama, temaya boyanan başlık çubuğu, MDL2 mute ikonları, kablo durumu noktası.
 
 ### v1.4.0 Yenilikleri
 
@@ -62,7 +77,11 @@ Ses yönlendirme için **VB-CABLE** (VB-Audio) sanal ses sürücüsü kullanıl�
 | **Voxora In Audio** | `CABLE Input (VB-Audio Virtual Cable)` | Voxora'nın efekt sesinin gittiği sanal oynatma (render) aygıtı. Discord/oyun burayı **seçmez**; ses buradan `CABLE Output` üzerinden akar. |
 | **Voxora Out Audio** | `CABLE Output (VB-Audio Virtual Cable)` | Sanal kablodan çıkan sesi mikrofon gibi okuyan sanal kayıt (capture) aygıtı. Discord/oyun burayı **Giriş Aygıtı** olarak seçer. |
 
-Gerçek cihaz kimlikleri (MMDevice ID) dahili olarak korunur; yalnızca ekranda görünen etiket Voxora markalıdır.
+Gerçek cihaz kimlikleri (MMDevice ID) dahili olarak korunur. **v2.0.0** ile, Ayarlar →
+Ses → **Cihazları yeniden adlandır** düğmesi Windows'taki aygıt adını da değiştirir
+(yönetici izni ister). Böylece Discord'un mikrofon listesinde `CABLE Output` yerine
+**Voxora Out Audio** görünür. İşlem geri alınabilir: Windows **Ayarlar → Sistem → Ses**
+bölümünden cihazı yeniden adlandırın.
 
 ### Dil Desteği
 
@@ -89,7 +108,7 @@ Kurulum sonrası Windows Ses Ayarlarında iki yeni sanal cihaz görünür: `CABL
 
 ### 2. Voxora'yı kurun
 
-`dist\Voxora-Setup.exe` dosyasını çalıştırın. Kurulum:
+`Voxora-2.0.0-setup.exe` dosyasını çalıştırın. Kurulum:
 
 - Kullanıcı bazında (`%LOCALAPPDATA%\Programs\Voxora`) — yönetici hakları **gerekmez**
 - Başlat Menüsü kısayolu oluşturur
@@ -97,16 +116,20 @@ Kurulum sonrası Windows Ses Ayarlarında iki yeni sanal cihaz görünür: `CABL
 - "Windows açılışında başlat" seçeneği işaretlenirse `HKCU\...\Run` anahtarına yazılır
 - Kaldırma işlemi **`%APPDATA%\KayoneZSoundpad`** klasöründeki kullanıcı verilerini (ayarlar, ses kitaplığı) **silmez**
 
+Taşınabilir sürüm: `Voxora-v2.0.0-win-x64.zip` arşivini bir klasöre açıp `Voxora.exe`
+çalıştırın; .NET kurulumu gerekmez.
+
 ### 3. İlk çalıştırma ve ayarlar
 
-1. Voxora'yı başlatın.
-2. **Ayarlar** penceresini açın → **Ses Yönlendirme** bölümünde:
-   - **Çıkış (Discord/Oyun):** `Voxora In Audio` seçin
-   - **Mikrofon:** Gerçek mikrofonunuzu seçin (Voxora Out Audio **değil**)
-   - **Lokal Monitör:** Kulaklık/hoparlörünüzü seçin
-3. **Oto Ayarla** butonuna basın — Voxora sanal aygıtları otomatik yapılandırılır.
-4. Discord (veya oyun) ayarlarında Giriş Aygıt'ı olarak **`Voxora Out Audio`** seçin.
-5. Discord'da Gürültü Bastırma, Yankı İptali ve Otomatik Kazancı **KAPALI** tutun (Krisp açıkken efektler bozulur).
+1. Voxora'yı başlatın; **kurulum sihirbazı** açılır (dil → tema → ses → cihaz adları).
+2. Sihirbazda **Oto Ayarla** ile yönlendirme otomatik kurulur:
+   - **Çıkış (Discord/Oyun):** `Voxora In Audio`
+   - **Mikrofon:** gerçek mikrofonunuz (`Voxora Out Audio` **değil**)
+   - **Lokal Monitör:** kulaklık/hoparlörünüz
+3. Discord (veya oyun) ayarlarında Giriş Aygıtı olarak **`Voxora Out Audio`** seçin.
+4. Discord'da Gürültü Bastırma, Yankı İptali ve Otomatik Kazancı **KAPALI** tutun (Krisp açıkken efektler bozulur).
+5. Cihaz adları hâlâ `CABLE` görünüyorsa Ayarlar → Ses → **Cihazları yeniden adlandır**
+   (UAC onayı) ve Discord'u yeniden başlatın.
 
 ---
 
@@ -160,7 +183,7 @@ dotnet publish src\KayoneZSoundpad\KayoneZSoundpad.csproj -c Release -r win-x64 
 ISCC.exe installer\Voxora.iss
 ```
 
-Çıktı: `dist\Voxora-Setup.exe`
+Çıktı: `dist\Voxora-2.0.0-setup.exe`
 
 ---
 
@@ -252,6 +275,7 @@ Aşağıdaki güvenlik korumaları uygulanmıştır:
 | Ses motoru | Akış kaynakları voice bitince/iptal edilince tek sefer serbest bırakılır; kilit kapsamı dar tutulur |
 | Global kısayollar | Modül tanıtıcısı doğrulaması, `CallNextHookEx` sonucu iade edilir |
 | Tek örnek | `"KayoneZSoundpad_SingleInstance"` mutex ile çift çalıştırma engellenir |
+| Cihaz adı değiştirme | Yalnızca kullanıcı onayı + UAC ile; `--rename-audio-endpoints` yardımcısı sadece `PKEY_Device_FriendlyName` yazar, başka ayar değiştirmez |
 | Güncelleme kontrolü | Yalnızca GitHub Releases API'sine okuma isteği; token yok, kişisel veri gönderilmez |
 
 ---
@@ -268,6 +292,9 @@ Kısa özet: Yazıyı özgürce kullanabilir, kopyalayabilir, değiştirebilir, 
 
 - VB-CABLE sürücüsü kurulu olmadan ses yönlendirme çalışmaz.
 - Sadece Windows 10/11 (WPF/NAudio bağımlılığı).
+- Canlı Sahneler, Efekt Stüdyosu, Makrolar, Mini Mod, AI Ses Asistanı ve Topluluk Ses
+  Paketleri v2.0.0'da henüz uygulanmadı; arayüzde **YAKINDA** olarak işaretlidir.
+- Windows cihaz adı değiştirme UAC ister ve cihaz adını tüm uygulamalarda değiştirir.
 - Global kısayollar sistem genelinde çalışır; bazı oyunlar kendi kısayollarını yakalayabilir.
 - Mikrofon izni Windows Gizlilik ayarlarından kontrol edilir; Voxora bunu otomatik olarak istemez.
 

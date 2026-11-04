@@ -26,14 +26,91 @@ public class DeviceService : IDisposable
 {
     private readonly MMDeviceEnumerator _enumerator = new();
     private DeviceNotificationClient? _notificationClient;
+    private readonly object _notifyGate = new();
+    private System.Threading.Timer? _notifyTimer;
+    private string? _lastSignature;
+    private int _disposed;
 
-    /// <summary>Aygıt eklendi/kaldırıldı/devre dışı kaldı.</summary>
+    /// <summary>
+    /// Görünür aygıt kümesi gerçekten değiştiğinde tetiklenir. Windows bazı
+    /// sürücülerde aynı olayı saniyede birkaç kez yayınlıyor; bu yüzden olaylar
+    /// 450 ms'de birleştirilir ve imza değişmediyse hiç yayınlanmaz.
+    /// </summary>
     public event Action? DevicesChanged;
 
     public DeviceService()
     {
-        _notificationClient = new DeviceNotificationClient(() => DevicesChanged?.Invoke());
+        _notificationClient = new DeviceNotificationClient(ScheduleNotify);
         _enumerator.RegisterEndpointNotificationCallback(_notificationClient);
+        _lastSignature = BuildSignature();
+    }
+
+    /// <summary>Olay fırtınasını tek bir gecikmeli kontrole indirger.</summary>
+    private void ScheduleNotify()
+    {
+        if (Volatile.Read(ref _disposed) != 0) return;
+        lock (_notifyGate)
+        {
+            _notifyTimer ??= new System.Threading.Timer(_ => PublishIfChanged(), null,
+                Timeout.Infinite, Timeout.Infinite);
+            _notifyTimer.Change(450, Timeout.Infinite);
+        }
+    }
+
+    private void PublishIfChanged()
+    {
+        if (Volatile.Read(ref _disposed) != 0) return;
+
+        string signature;
+        try { signature = BuildSignature(); }
+        catch { return; }
+
+        lock (_notifyGate)
+        {
+            if (string.Equals(signature, _lastSignature, StringComparison.Ordinal)) return;
+            _lastSignature = signature;
+        }
+
+        try { DevicesChanged?.Invoke(); } catch { }
+    }
+
+    /// <summary>Aktif uç noktaların kimlik + görünen ad + varsayılan özeti.</summary>
+    private string BuildSignature()
+    {
+        var sb = new System.Text.StringBuilder(256);
+        foreach (var flow in new[] { DataFlow.Render, DataFlow.Capture })
+        {
+            sb.Append(flow).Append(':');
+
+            string? defaultId = null;
+            NAudio.CoreAudioApi.MMDevice? defaultDevice = null;
+            try
+            {
+                defaultDevice = _enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia);
+                defaultId = defaultDevice?.ID;
+            }
+            catch { }
+            finally { try { defaultDevice?.Dispose(); } catch { } }
+
+            try
+            {
+                foreach (var device in _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active))
+                {
+                    try
+                    {
+                        sb.Append(device.ID).Append('|');
+                        try { sb.Append(device.FriendlyName); } catch { }
+                        sb.Append(';');
+                    }
+                    catch { }
+                    finally { try { device.Dispose(); } catch { } }
+                }
+            }
+            catch { }
+
+            sb.Append("#default=").Append(defaultId).Append('\n');
+        }
+        return sb.ToString();
     }
 
     public List<DeviceEntry> GetRenderDevices()
@@ -48,7 +125,14 @@ public class DeviceService : IDisposable
         try
         {
             string? defaultId = null;
-            try { defaultId = _enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia)?.ID; } catch { }
+            NAudio.CoreAudioApi.MMDevice? defaultDevice = null;
+            try
+            {
+                defaultDevice = _enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia);
+                defaultId = defaultDevice?.ID;
+            }
+            catch { }
+            finally { try { defaultDevice?.Dispose(); } catch { } }
 
             foreach (var d in _enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active))
             {
@@ -137,6 +221,14 @@ public class DeviceService : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+        lock (_notifyGate)
+        {
+            _notifyTimer?.Dispose();
+            _notifyTimer = null;
+        }
+
         if (_notificationClient != null)
         {
             try { _enumerator.UnregisterEndpointNotificationCallback(_notificationClient); } catch { }
