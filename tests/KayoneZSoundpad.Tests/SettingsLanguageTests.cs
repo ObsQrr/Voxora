@@ -17,7 +17,7 @@ public class SettingsLanguageTests : IDisposable
     {
         var svc = new SettingsService(Path.Combine(_dir.Path, "settings.json"));
         Assert.Equal("tr", svc.Settings.Language);
-        Assert.Equal("light", svc.Settings.Theme);
+        Assert.Equal("dark", svc.Settings.Theme);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class SettingsLanguageTests : IDisposable
 
         var svc = new SettingsService(path);
         Assert.Equal("tr", svc.Settings.Language);
-        Assert.Equal("light", svc.Settings.Theme);
+        Assert.Equal("dark", svc.Settings.Theme);
     }
 
     [Fact]

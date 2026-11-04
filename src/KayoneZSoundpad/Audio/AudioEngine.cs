@@ -377,6 +377,17 @@ public class AudioEngine : IDisposable
     /// Ses çalar. Dönen voice durdurulabilir (voice.Stop() değil — StopVoice() kullanın).
     /// Retrigger davranışı çağıran taraf (UI/VM) iletişimle yönetir; motor yalnız ekler/kaldırır.
     /// </summary>
+    /// <summary>Kurulum sihirbazı için kısa test tonu çalar (gerçek miks hattına girer).</summary>
+    public bool PlayTestTone(double seconds = 1.0, double frequencyHz = 660)
+    {
+        lock (_lock)
+        {
+            if (!_running || _fxMixer == null) return false;
+            _fxMixer.AddMixerInput(new ToneSampleProvider(Stereo48k, frequencyHz, Math.Clamp(seconds, 0.1, 3.0)));
+            return true;
+        }
+    }
+
     public PlaybackVoice? Play(Guid soundId, ISampleProvider source, float volume, IDisposable? owner = null)
     {
         PlaybackVoice? previous;

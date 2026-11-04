@@ -13,6 +13,7 @@ public partial class CableGuideWindow : Window
     {
         InitializeComponent();
         _vm = vm;
+        SourceInitialized += (_, _) => WindowChromeHelper.Apply(this);
         UpdateTexts();
         LocalizationService.LanguageChanged += OnLanguageChanged;
         Closed += (_, _) => LocalizationService.LanguageChanged -= OnLanguageChanged;

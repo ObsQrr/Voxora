@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <Content Include="TestAssets\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\KayoneZSoundpad\Themes\Theme.Base.xaml"
+             Link="TestAssets\Theme.Base.xaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\KayoneZSoundpad\Themes\Theme.Dark.xaml"
              Link="TestAssets\Theme.Dark.xaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\KayoneZSoundpad\Themes\Theme.Light.xaml"

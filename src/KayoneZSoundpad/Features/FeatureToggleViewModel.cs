@@ -40,6 +40,15 @@ public sealed class FeatureToggleViewModel : INotifyPropertyChanged
         ? LocalizationService.T("Feature_RestartRequired")
         : "";
 
+    /// <summary>Modül henüz tamamlanmadıysa arayüzde dürüst bir rozet gösterilir.</summary>
+    public bool ShowAvailability => Definition.Availability != FeatureAvailability.Available;
+    public string AvailabilityText => Definition.Availability switch
+    {
+        FeatureAvailability.Beta => LocalizationService.T("FeatureStatus_Beta"),
+        FeatureAvailability.ComingSoon => LocalizationService.T("FeatureStatus_ComingSoon"),
+        _ => ""
+    };
+
     public void Apply() => _service.SetEnabled(Definition.Id, _enabled);
 
     public void RefreshText()
@@ -48,6 +57,8 @@ public sealed class FeatureToggleViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(RestartHint));
         OnPropertyChanged(nameof(ShowRestartHint));
+        OnPropertyChanged(nameof(AvailabilityText));
+        OnPropertyChanged(nameof(ShowAvailability));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

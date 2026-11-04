@@ -39,9 +39,16 @@ public class ThemeResourceTests
     {
         foreach (var file in new[] { "Theme.Dark.xaml", "Theme.Light.xaml" })
         {
+            // Stiller ortak Theme.Base.xaml'de; palet dosyaları onu merge eder.
             var keys = Keys(file);
-            Assert.Contains("Icon", keys);
-            Assert.Contains("IconSm", keys);
+            var baseKeys = Keys("Theme.Base.xaml");
+
+            Assert.Contains("Icon", baseKeys);
+            Assert.Contains("IconSm", baseKeys);
+            Assert.Contains("MergedDictionaries", ReadText(file));
         }
     }
+
+    private static string ReadText(string fileName)
+        => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "TestAssets", fileName));
 }

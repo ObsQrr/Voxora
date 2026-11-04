@@ -82,11 +82,11 @@ public class DeviceService : IDisposable
         var lower = originalName.ToLowerInvariant();
 
         // Çıkış aygıtları (Render) - Voxora'dan sanal kabloya giden ses
-        if (flow == DataFlow.Render && lower.Contains("cable input"))
+        if (flow == DataFlow.Render && (lower.Contains("cable input") || lower.Contains("voxora in audio")))
             return "Voxora In Audio";
 
         // Giriş aygıtları (Capture) - Sanal kablodan Discord'a/oyuna giden ses
-        if (flow == DataFlow.Capture && lower.Contains("cable output"))
+        if (flow == DataFlow.Capture && (lower.Contains("cable output") || lower.Contains("voxora out audio")))
             return "Voxora Out Audio";
 
         return originalName;
@@ -96,7 +96,8 @@ public class DeviceService : IDisposable
     {
         name = name.ToLowerInvariant();
         return name.Contains("cable input") || name.Contains("cable output") ||
-               name.Contains("cable-audio") || name.Contains("virtual cable");
+               name.Contains("cable-audio") || name.Contains("virtual cable") ||
+               name.Contains("voxora in audio") || name.Contains("voxora out audio");
     }
 
     /// <summary>
@@ -106,14 +107,18 @@ public class DeviceService : IDisposable
     public DeviceEntry? FindCableCapture()
     {
         var captures = GetCaptureDevices();
-        return captures.FirstOrDefault(d => d.IsCable && d.OriginalName.ToLowerInvariant().Contains("cable output"))
+        return captures.FirstOrDefault(d => d.IsCable && (
+                   d.OriginalName.Contains("cable output", StringComparison.OrdinalIgnoreCase) ||
+                   d.OriginalName.Contains("voxora out audio", StringComparison.OrdinalIgnoreCase)))
             ?? captures.FirstOrDefault(d => d.IsCable);
     }
 
     public DeviceEntry? FindCableRender()
     {
         var renders = GetRenderDevices();
-        return renders.FirstOrDefault(d => d.IsCable && d.OriginalName.ToLowerInvariant().Contains("cable input"))
+        return renders.FirstOrDefault(d => d.IsCable && (
+                   d.OriginalName.Contains("cable input", StringComparison.OrdinalIgnoreCase) ||
+                   d.OriginalName.Contains("voxora in audio", StringComparison.OrdinalIgnoreCase)))
             ?? renders.FirstOrDefault(d => d.IsCable);
     }
 
@@ -151,7 +156,16 @@ public class DeviceService : IDisposable
         public void OnDeviceAdded(string pwstrDeviceName) => Notify();
         public void OnDeviceRemoved(string deviceId) => Notify();
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) => Notify();
-        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { /* yok say */ }
+
+        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key)
+        {
+            // Yalnızca görünen ad değiştiğinde listeyi tazele (ses seviyesi vb. değil).
+            if (key.formatId == FriendlyNameFormatId && key.propertyId == FriendlyNamePropertyId)
+                Notify();
+        }
+
+        private static readonly Guid FriendlyNameFormatId = new("a45c254e-df1c-4efd-8020-67d146a850e0");
+        private const int FriendlyNamePropertyId = 14;
 
         private void Notify() => _onChanged();
     }

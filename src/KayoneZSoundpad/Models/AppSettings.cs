@@ -8,8 +8,10 @@ namespace KayoneZSoundpad.Models;
 public class AppSettings
 {
     // Görünüm
-    [JsonPropertyName("theme")] public string Theme { get; set; } = "light";
+    [JsonPropertyName("theme")] public string Theme { get; set; } = "dark";
     [JsonPropertyName("language")] public string Language { get; set; } = "tr";
+    /// <summary>İlk kurulum sihirbazı tamamlandı mı? (v2.0)</summary>
+    [JsonPropertyName("onboardingCompleted")] public bool OnboardingCompleted { get; set; }
     [JsonPropertyName("rememberLastCategory")] public bool RememberLastCategory { get; set; } = true;
     [JsonPropertyName("lastCategoryId")] public Guid? LastCategoryId { get; set; }
 

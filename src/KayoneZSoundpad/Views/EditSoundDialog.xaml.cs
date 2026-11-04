@@ -17,7 +17,7 @@ public partial class EditSoundDialog : Window
         InitializeComponent();
         _vm = vm;
         _sound = sound;
-
+        SourceInitialized += (_, _) => WindowChromeHelper.Apply(this);
         NameBox.Text = sound.Name;
 
         // Kategoriler: ilk öğe = kategori yok

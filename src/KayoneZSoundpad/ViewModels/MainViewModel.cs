@@ -75,6 +75,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public AppSettings Settings => _settingsService.Settings;
     public LibraryService Library => _library;
+    public AudioEngine Engine => _engine;
     public PlaybackManager Playback => _playback;
     public GlobalHotkeyService Hotkeys => _hotkeys;
     public DeviceService Devices => _devices;

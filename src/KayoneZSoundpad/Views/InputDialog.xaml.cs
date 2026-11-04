@@ -9,6 +9,7 @@ public partial class InputDialog : Window
     {
         InitializeComponent();
         Title = title;
+        SourceInitialized += (_, _) => WindowChromeHelper.Apply(this);
         PromptText.Text = prompt;
         InputBox.Text = initial;
         InputBox.SelectAll();

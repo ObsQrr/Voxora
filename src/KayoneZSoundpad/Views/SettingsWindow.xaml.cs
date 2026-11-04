@@ -28,6 +28,7 @@ public partial class SettingsWindow : Window
         _app = (App)System.Windows.Application.Current;
         InitializeComponent();
         DataContext = _vm;
+        SourceInitialized += (_, _) => WindowChromeHelper.Apply(this);
 
         var s = vm.Settings;
 
@@ -82,6 +83,8 @@ public partial class SettingsWindow : Window
         }
         Loaded += OnLoaded;
         LocalizationService.LanguageChanged += OnLanguageChanged;
+        RailVersionText.Text = $"v{VersionText}";
+        NavList.SelectedIndex = 0;
         Closed += (_, _) =>
         {
             _closed = true;
@@ -93,6 +96,99 @@ public partial class SettingsWindow : Window
     }
 
     private void OnDevicesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshDeviceSelections();
+
+    // ------------------------------------------------------------ gezinme
+
+    private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavList?.SelectedItem is not ListBoxItem item) return;
+
+        var tag = item.Tag as string ?? "general";
+        FrameworkElement page;
+        string titleKey;
+        string subtitleKey;
+
+        switch (tag)
+        {
+            case "audio":
+                page = PageAudio; titleKey = "Settings_NavAudio"; subtitleKey = "Settings_PageAudioHint"; break;
+            case "behavior":
+                page = PageBehavior; titleKey = "Settings_NavBehavior"; subtitleKey = "Settings_PageBehaviorHint"; break;
+            case "features":
+                page = PageFeatures; titleKey = "Settings_NavFeatures"; subtitleKey = "Settings_PageFeaturesHint"; break;
+            case "updates":
+                page = PageUpdates; titleKey = "Settings_NavUpdates"; subtitleKey = "Settings_PageUpdatesHint"; break;
+            case "about":
+                page = PageAbout; titleKey = "Settings_NavAbout"; subtitleKey = "Settings_PageAboutHint"; break;
+            default:
+                page = PageGeneral; titleKey = "Settings_NavGeneral"; subtitleKey = "Settings_PageGeneralHint"; break;
+        }
+
+        foreach (var candidate in new FrameworkElement[] { PageGeneral, PageAudio, PageBehavior, PageFeatures, PageUpdates, PageAbout })
+            candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
+
+        PageTitle.Text = LocalizationService.T(titleKey);
+        PageSubtitle.Text = LocalizationService.T(subtitleKey);
+        RevealPage(page);
+    }
+
+    /// <summary>Sayfa değişiminde kısa bir giriş: içerik kayarak ve solarak gelir.</summary>
+    private static void RevealPage(FrameworkElement page)
+    {
+        if (!SystemParameters.ClientAreaAnimation) return;
+
+        page.Opacity = 0;
+        var shift = new System.Windows.Media.TranslateTransform(0, 8);
+        page.RenderTransform = shift;
+
+        var duration = TimeSpan.FromMilliseconds(190);
+        var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+        page.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, duration) { EasingFunction = ease });
+        shift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(8, 0, duration) { EasingFunction = ease });
+    }
+
+    private void OpenOnboarding_Click(object sender, RoutedEventArgs e)
+    {
+        var owner = Owner;
+        Close();
+        _app.OpenOnboarding(owner);
+    }
+
+    private async void RenameDevices_Click(object sender, RoutedEventArgs e)
+    {
+        RenameDevicesButton.IsEnabled = false;
+        DeviceNameStatus.Visibility = Visibility.Visible;
+        DeviceNameStatus.Foreground = (System.Windows.Media.Brush)FindResource("Brush.TextSecondary");
+        DeviceNameStatus.Text = LocalizationService.T("DeviceName_Working");
+
+        try
+        {
+            var result = await AudioEndpointNamingService.RenameVoxoraEndpointsAsync(this);
+            if (_closed) return;
+
+            if (result.Success)
+            {
+                DeviceNameStatus.Foreground = (System.Windows.Media.Brush)FindResource("Brush.Success");
+                DeviceNameStatus.Text = result.AlreadyNamed
+                    ? LocalizationService.T("DeviceName_AlreadyNamed")
+                    : LocalizationService.T("DeviceName_Done");
+            }
+            else if (result.Error == null)
+            {
+                DeviceNameStatus.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                DeviceNameStatus.Foreground = (System.Windows.Media.Brush)FindResource("Brush.Danger");
+                DeviceNameStatus.Text = result.Error;
+            }
+        }
+        finally
+        {
+            if (!_closed) RenameDevicesButton.IsEnabled = true;
+        }
+    }
 
     private void RefreshDeviceSelections()
     {

@@ -5,6 +5,9 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using KayoneZSoundpad.Audio;
 using KayoneZSoundpad.Models;
@@ -31,18 +34,35 @@ public partial class MainWindow : Window
         _vm = vm;
         _app = (App)System.Windows.Application.Current;
         DataContext = vm;
+        SourceInitialized += (_, _) => WindowChromeHelper.Apply(this);
 
         WireViewModel();
         InitTray();
 
         // Cihaz listesi her yenilendiğinde seçimi kayıtlı ID'ye göre geri koy.
-        _vm.RenderDevices.CollectionChanged += (_, _) => RefreshDeviceSelections();
-        _vm.CaptureDevices.CollectionChanged += (_, _) => RefreshDeviceSelections();
+        _vm.RenderDevices.CollectionChanged += (_, _) => { RefreshDeviceSelections(); UpdateCableIndicator(); };
+        _vm.CaptureDevices.CollectionChanged += (_, _) => { RefreshDeviceSelections(); UpdateCableIndicator(); };
 
         LocalizationService.LanguageChanged += OnLanguageChanged;
 
         // ayarları UI'a yansıt (event'lerin erken tetiklenmesini engelle)
-        Loaded += (_, _) => SyncUiFromSettings();
+        Loaded += (_, _) =>
+        {
+            SyncUiFromSettings();
+            UpdateCableIndicator();
+            PlayEntrance();
+        };
+
+        // Ctrl+K: aramaya odaklan (konsol kısayolu).
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.K && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+                e.Handled = true;
+            }
+        };
 
         // seviye göstergeleri
         _meterTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -114,6 +134,44 @@ public partial class MainWindow : Window
         {
             _uiReady = ready;
         }
+    }
+
+    /// <summary>Pencere açılışında tek, ölçülü bir giriş hareketi.</summary>
+    private void PlayEntrance()
+    {
+        if (!SystemParameters.ClientAreaAnimation) return;
+
+        var duration = TimeSpan.FromMilliseconds(300);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        Opacity = 0;
+        BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
+
+        // Window'da RenderTransform kullanılamaz; kaydırma kök içerikte yapılır.
+        if (Content is UIElement content)
+        {
+            var shift = new TranslateTransform(0, 14);
+            content.RenderTransform = shift;
+            shift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, duration) { EasingFunction = ease });
+        }
+    }
+
+    /// <summary>Raydaki kablo durumu noktasını gerçek yönlendirme durumuna göre renklendirir.</summary>
+    private void UpdateCableIndicator()
+    {
+        if (CableStatusDot == null) return;
+
+        System.Windows.Media.Brush brush;
+        var cableIn = _vm.Devices.FindCableRender();
+        var cableOut = _vm.Devices.FindCableCapture();
+        if (cableIn == null || cableOut == null)
+            brush = (System.Windows.Media.Brush)FindResource("Brush.Danger");
+        else if (_vm.IsCableRoutingActive)
+            brush = (System.Windows.Media.Brush)FindResource("Brush.Success");
+        else
+            brush = (System.Windows.Media.Brush)FindResource("Brush.Warning");
+
+        CableStatusDot.Fill = brush;
     }
 
     private void UpdateEmptyState()
@@ -310,6 +368,7 @@ public partial class MainWindow : Window
         if (!_uiReady) return;
         if (OutputDeviceCombo?.SelectedItem is DeviceEntry d)
             _vm.SetOutputDevice(d);
+        UpdateCableIndicator();
     }
 
     private void MicVolume_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

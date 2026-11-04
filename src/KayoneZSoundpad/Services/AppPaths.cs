@@ -9,7 +9,9 @@ public static class AppPaths
     private static string? _override;
 
     public static string BaseDir
-        => _override ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KayoneZSoundpad");
+        => _override
+           ?? Environment.GetEnvironmentVariable("VOXORA_DATA_DIR")
+           ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KayoneZSoundpad");
 
     /// <summary>Testler için veri dizinini yönlendirir.</summary>
     public static void SetOverride(string? dir) => _override = dir;

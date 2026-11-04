@@ -22,11 +22,14 @@ public class NotEmptyToVisibilityConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>bool → mute ikonu (🔇 = açık / 🔊 = kapalı).</summary>
+/// <summary>
+/// bool → mute ikonu. Segoe MDL2 Assets kod noktaları kullanılır; emoji
+/// yazı tipi bağımlılığı (ve tofu kutuları) böylece ortadan kalkar.
+/// </summary>
 public class MuteIconConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is true ? "🔇" : "🔊";
+        => value is true ? "\uE74F" : "\uE767"; // Mute / Volume
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

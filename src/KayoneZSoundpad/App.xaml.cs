@@ -14,6 +14,25 @@ public partial class App : System.Windows.Application
 {
     private static Mutex? _singleInstanceMutex;
 
+    public App()
+    {
+        // Başlangıç hatalarını sessizce kaybetme: dispatcher dışında oluşan
+        // istisnalar da teşhis günlüğüne yazılsın.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            LogDiagnostic("APPDOMAIN EXCEPTION: " + e.ExceptionObject);
+    }
+
+    internal static void LogDiagnostic(string message)
+    {
+        try
+        {
+            File.AppendAllText(
+                Path.Combine(Path.GetTempPath(), "voxora-ui.log"),
+                DateTime.Now.ToString("HH:mm:ss.fff") + " " + message + Environment.NewLine + Environment.NewLine);
+        }
+        catch { }
+    }
+
     public static AppPathsHolder? Paths { get; private set; }
     public MainViewModel? ViewModel { get; private set; }
 
@@ -34,11 +53,24 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Yükseltilmiş yardımcı mod: yalnızca cihaz adlarını değiştirip çıkar.
+        // Tek örnek mutex'inden ÖNCE ele alınır; aksi halde "zaten çalışıyor" der.
+        if (e.Args.Any(a => string.Equals(a, AudioEndpointNamingService.RenameSwitch, StringComparison.OrdinalIgnoreCase)))
+        {
+            Shutdown(AudioEndpointNamingService.RenameElevated());
+            return;
+        }
+
         // Dil, herhangi bir metin üretilmeden önce yüklenmeli (varsayılan: Türkçe).
         LocalizationService.Initialize(LocalizationService.Turkish);
 
-        // tek örnek
-        _singleInstanceMutex = new Mutex(true, "KayoneZSoundpad_SingleInstance", out var isNew);
+        // tek örnek — farklı veri diziniyle (VOXORA_DATA_DIR) çalışan test/taşınabilir
+        // kopya, kurulu uygulamayla çakışmadan açılabilir.
+        bool sandboxedProfile = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VOXORA_DATA_DIR"));
+        var mutexName = sandboxedProfile
+            ? "KayoneZSoundpad_SingleInstance_" + StableProfileKey(AppPaths.BaseDir)
+            : "KayoneZSoundpad_SingleInstance";
+        _singleInstanceMutex = new Mutex(true, mutexName, out var isNew);
         if (!isNew)
         {
             System.Windows.MessageBox.Show(LocalizationService.T("App_AlreadyRunning"),
@@ -112,8 +144,33 @@ public partial class App : System.Windows.Application
         ViewModel.ApplyEngineConfig();
         ViewModel.RegisterAllHotkeys();
 
+        // İlk kurulum: sihirbaz ana pencere hazır olduktan sonra açılır.
+        if (!settingsService.Settings.OnboardingCompleted)
+            Dispatcher.BeginInvoke(new Action(() => OpenOnboarding(_mainWindow)),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
         // Güncelleme kontrolü arka planda; açılışı bloklamaz.
         _ = CheckForUpdatesOnStartupAsync();
+    }
+
+    /// <summary>Sandbox profil adı için kararlı (süreçten bağımsız) kısa anahtar.</summary>
+    private static string StableProfileKey(string path)
+    {
+        uint hash = 2166136261;
+        foreach (char c in path.ToUpperInvariant())
+        {
+            hash ^= c;
+            hash *= 16777619;
+        }
+        return hash.ToString("X8");
+    }
+
+    /// <summary>Kurulum sihirbazını açar (ilk açılış veya Ayarlar'dan).</summary>
+    public void OpenOnboarding(Window? owner)
+    {
+        if (ViewModel == null) return;
+        var wizard = new OnboardingWindow(ViewModel, owner ?? _mainWindow);
+        wizard.ShowDialog();
     }
 
     private async Task CheckForUpdatesOnStartupAsync()
@@ -157,6 +214,10 @@ public partial class App : System.Windows.Application
             Source = new Uri(theme == "light" ? "Themes/Theme.Light.xaml" : "Themes/Theme.Dark.xaml", UriKind.Relative)
         };
         dicts.Add(dict);
+
+        // Açık pencerelerin başlık çubuğu da yeni temaya uysun.
+        foreach (Window window in Windows)
+            WindowChromeHelper.Apply(window);
     }
 
     protected override void OnExit(ExitEventArgs e)

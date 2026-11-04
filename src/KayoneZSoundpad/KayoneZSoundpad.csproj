@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\app.png" />
+    <Resource Include="Themes\Theme.Base.xaml" />
     <Resource Include="Themes\Theme.Dark.xaml" />
     <Resource Include="Themes\Theme.Light.xaml" />
   </ItemGroup>
