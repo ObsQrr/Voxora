@@ -49,6 +49,10 @@ public class AppSettings
     // Kısayollar
     [JsonPropertyName("stopAllHotkey")] public HotkeyGesture? StopAllHotkey { get; set; }
 
+    /// <summary>Oyun üstü daire menüsünü açar (varsayılan F1).</summary>
+    [JsonPropertyName("radialMenuHotkey")]
+    public HotkeyGesture? RadialMenuHotkey { get; set; } = new() { VirtualKey = 0x70 };
+
     // Motor
     [JsonPropertyName("maxCacheMb")] public int MaxCacheMb { get; set; } = 256;
     [JsonPropertyName("engineLatencyMs")] public int EngineLatencyMs { get; set; } = 50;

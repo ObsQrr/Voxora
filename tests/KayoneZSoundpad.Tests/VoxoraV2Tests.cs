@@ -2,6 +2,8 @@ using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using Xunit;
 using KayoneZSoundpad.Audio;
+using KayoneZSoundpad.Features;
+using KayoneZSoundpad.Models;
 using KayoneZSoundpad.Services;
 
 namespace KayoneZSoundpad.Tests;
@@ -90,5 +92,40 @@ public class VoxoraV2Tests : IDisposable
     public void DefaultTheme_IsDarkForNewProfiles()
     {
         Assert.Equal("dark", new KayoneZSoundpad.Models.AppSettings().Theme);
+    }
+
+    [Fact]
+    public void DefaultRadialHotkey_IsF1()
+    {
+        var settings = new AppSettings();
+        Assert.NotNull(settings.RadialMenuHotkey);
+        Assert.Equal(0x70, settings.RadialMenuHotkey!.VirtualKey);
+        Assert.Equal(HotkeyModifiers.None, settings.RadialMenuHotkey.Modifiers);
+    }
+
+    [Fact]
+    public void RadialMenu_IsEnabledByDefault()
+    {
+        var definition = FeatureCatalog.Get(FeatureId.RadialMenu);
+        Assert.True(definition.DefaultEnabled);
+        Assert.Equal(FeatureAvailability.Available, definition.Availability);
+    }
+
+    [Fact]
+    public void RadialHotkey_RoundTripsThroughSettings()
+    {
+        var path = System.IO.Path.Combine(_dir.Path, "radial.json");
+        var service = new SettingsService(path);
+        service.Settings.RadialMenuHotkey = new HotkeyGesture
+        {
+            VirtualKey = 0x71,
+            Modifiers = HotkeyModifiers.Ctrl
+        };
+        service.Save();
+
+        var reloaded = new SettingsService(path).Settings.RadialMenuHotkey!;
+        Assert.Equal(0x71, reloaded.VirtualKey);
+        Assert.Equal(HotkeyModifiers.Ctrl, reloaded.Modifiers);
+        Assert.Equal("Ctrl + F2", reloaded.ToString());
     }
 }

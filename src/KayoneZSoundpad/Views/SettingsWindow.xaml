@@ -445,6 +445,24 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Style="{StaticResource Card}" Padding="20" Margin="0,0,0,14">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="&#xE7C1;" Style="{StaticResource Icon}" FontSize="15"
+                                               Foreground="{DynamicResource Brush.Accent}" Margin="0,0,10,0"/>
+                                    <TextBlock Text="{DynamicResource Settings_RadialTitle}" Style="{StaticResource CardTitle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{DynamicResource Settings_RadialHint}" Style="{StaticResource CardHint}"
+                                           Margin="0,0,0,12"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{DynamicResource Settings_RadialHotkey}"
+                                               Style="{StaticResource SettingRowLabel}" Width="190"/>
+                                    <views:HotkeyBox x:Name="RadialHotkeyBox" Width="300" HorizontalAlignment="Left"
+                                                     AutomationProperties.Name="{DynamicResource Settings_RadialHotkey}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource Card}" Padding="20">
                             <StackPanel>
                                 <TextBlock Text="{DynamicResource Settings_Hotkeys}" Style="{StaticResource CardTitle}" Margin="0,0,0,12"/>

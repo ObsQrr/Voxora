@@ -40,6 +40,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly Action _onDevicesChanged;
     private bool _disposed;
     public static readonly Guid StopAllActionId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+    public static readonly Guid RadialMenuActionId = Guid.Parse("00000000-0000-0000-0000-000000000002");
 
     public ObservableCollection<SoundCardViewModel> Sounds { get; } = new();
     public ObservableCollection<CategoryEntry> Categories { get; } = new();
@@ -85,6 +86,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsSmartSearchEnabled => _features.IsEnabled(FeatureId.SmartSoundSearch);
     public bool IsVoiceChangerEnabled => _features.IsEnabled(FeatureId.VoiceChanger);
+    public bool IsRadialMenuEnabled => _features.IsEnabled(FeatureId.RadialMenu);
 
     /// <summary>Son güncelleme kontrolünün sonucu (Settings penceresi için).</summary>
     public UpdateCheckResult? LastUpdateResult { get; private set; }
@@ -103,6 +105,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public event Action<SoundItem>? EditSoundRequested;
     public event Action? SettingsRequested;
     public event Action? CableGuideRequested;
+    public event Action? RadialMenuRequested;
     public event Action<string>? NotifyInfo;
     public event Action<string>? NotifyError;
 
@@ -286,6 +289,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             ApplyEngineConfig();
         OnPropertyChanged(nameof(IsSmartSearchEnabled));
         OnPropertyChanged(nameof(IsVoiceChangerEnabled));
+        OnPropertyChanged(nameof(IsRadialMenuEnabled));
     }
 
     // ------------------------------------------------------------ kısayollar
@@ -298,6 +302,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 _playback.StopAll();
                 foreach (var c in Sounds) c.RefreshPlaying();
+                return;
+            }
+            if (actionId == RadialMenuActionId)
+            {
+                if (IsRadialMenuEnabled)
+                    RadialMenuRequested?.Invoke();
                 return;
             }
             var sound = _library.Data.Sounds.FirstOrDefault(s => s.Id == actionId);
@@ -341,6 +351,21 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             seen[Settings.StopAllHotkey] = LocalizationService.T("Hotkey_StopAllOwner");
         }
 
+        if (Settings.RadialMenuHotkey?.IsValid == true)
+        {
+            var radial = Settings.RadialMenuHotkey;
+            if (seen.TryGetValue(radial, out var radialOwner))
+            {
+                conflicts.Add(LocalizationService.T("Hotkey_ConflictBoth", radial, radialOwner,
+                    LocalizationService.T("Hotkey_RadialOwner")));
+            }
+            else
+            {
+                _hotkeys.Register(radial, RadialMenuActionId);
+                seen[radial] = LocalizationService.T("Hotkey_RadialOwner");
+            }
+        }
+
         foreach (var s in _library.Data.Sounds)
         {
             if (s.Hotkey?.IsValid != true) continue;
@@ -362,6 +387,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (gesture?.IsValid != true) return null;
         if (Settings.StopAllHotkey?.Equals(gesture) == true)
             return LocalizationService.T("Hotkey_AssignedToStopAll", gesture);
+        if (Settings.RadialMenuHotkey?.Equals(gesture) == true)
+            return LocalizationService.T("Hotkey_AssignedToRadial", gesture);
         var other = _library.Data.Sounds.FirstOrDefault(s => s.Id != ownerSoundId && s.Hotkey?.Equals(gesture) == true);
         return other != null ? LocalizationService.T("Hotkey_AssignedToSound", gesture, other.Name) : null;
     }

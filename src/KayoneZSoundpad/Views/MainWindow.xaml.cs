@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private bool _uiReady;
     private UpdateCheckResult? _availableUpdate;
     private readonly DispatcherTimer _meterTimer;
+    private RadialMenuWindow? _radialWindow;
 
     public MainWindow(MainViewModel vm)
     {
@@ -85,6 +86,7 @@ public partial class MainWindow : Window
         _vm.EditSoundRequested += sound => OpenEditDialog(sound);
         _vm.SettingsRequested += OpenSettingsDialog;
         _vm.CableGuideRequested += OpenCableGuide;
+        _vm.RadialMenuRequested += ToggleRadialMenu;
         _vm.NotifyInfo += msg => ShowBalloon(msg, Forms.ToolTipIcon.Info);
         _vm.NotifyError += msg => ShowBalloon(msg, Forms.ToolTipIcon.Error);
         _vm.FilterApplied += UpdateEmptyState;
@@ -241,6 +243,58 @@ public partial class MainWindow : Window
     {
         var dlg = new CableGuideWindow(_vm) { Owner = this };
         dlg.ShowDialog();
+    }
+
+    /// <summary>
+    /// F1 benzeri global kısayolla açılan daire menüsü. Pencere odak çalmaz;
+    /// oyun arkada çalışmaya devam eder. Aynı kısayol tekrar basılırsa kapanır.
+    /// </summary>
+    private void ToggleRadialMenu()
+    {
+        if (_radialWindow != null)
+        {
+            _radialWindow.CloseOverlay();
+            return;
+        }
+
+        if (!_vm.IsRadialMenuEnabled) return;
+
+        var visible = System.Windows.Data.CollectionViewSource.GetDefaultView(_vm.Sounds)
+            .Cast<SoundCardViewModel>()
+            .Take(8)
+            .ToList();
+        if (visible.Count == 0)
+            visible = _vm.Sounds.Take(8).ToList();
+
+        var items = visible
+            .Select(card => new RadialMenuItem(card.Name, "", card))
+            .ToList();
+
+        var window = new RadialMenuWindow(items, payload =>
+        {
+            if (payload is SoundCardViewModel card)
+                _vm.TriggerFromUI(card.Sound);
+        });
+
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_radialWindow, window)) _radialWindow = null;
+        };
+
+        _radialWindow = window;
+        window.Left = SystemParameters.VirtualScreenLeft;
+        window.Top = SystemParameters.VirtualScreenTop;
+        window.Width = SystemParameters.VirtualScreenWidth;
+        window.Height = SystemParameters.VirtualScreenHeight;
+        try
+        {
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            App.LogDiagnostic("RadialMenuWindow Show failed: " + ex);
+            _radialWindow = null;
+        }
     }
 
     private void ImportLibrary_Click(object sender, RoutedEventArgs e)
@@ -482,6 +536,8 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _meterTimer.Stop();
+        try { _radialWindow?.Close(); } catch { }
+        _vm.RadialMenuRequested -= ToggleRadialMenu;
         LocalizationService.LanguageChanged -= OnLanguageChanged;
         _vm.UpdateAvailable -= ShowUpdateBanner;
         _tray?.Dispose();

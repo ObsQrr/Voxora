@@ -69,6 +69,7 @@ public partial class SettingsWindow : Window
         DuckLabel.Text = $"%{Math.Round(s.DuckFactor * 100)}";
 
         StopAllHotkeyBox.Value = s.StopAllHotkey?.Clone();
+        RadialHotkeyBox.Value = s.RadialMenuHotkey?.Clone();
 
         // Cihaz seçimleri elle yönetilir; liste yenilenirken geçici null oluşmaz.
         RefreshDeviceSelections();
@@ -445,6 +446,7 @@ public partial class SettingsWindow : Window
         s.DuckMicWhilePlaying = DuckCheck.IsChecked == true;
         s.DuckFactor = (float)DuckSlider.Value;
         s.StopAllHotkey = StopAllHotkeyBox.Value;
+        s.RadialMenuHotkey = RadialHotkeyBox.Value;
 
         s.VoiceChanger.Enabled = VoiceEnabledCheck.IsChecked == true;
         s.VoiceChanger.Preset = SelectedVoicePreset();

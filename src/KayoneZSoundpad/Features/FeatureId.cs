@@ -11,5 +11,6 @@ public enum FeatureId
     MiniMode,
     AiSoundAssistant,
     CommunitySoundPacks,
-    VoiceChanger
+    VoiceChanger,
+    RadialMenu
 }

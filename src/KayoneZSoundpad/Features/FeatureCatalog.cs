@@ -53,7 +53,9 @@ public static class FeatureCatalog
             "Feature_CommunitySoundPacks_Name", "Feature_CommunitySoundPacks_Desc", DefaultEnabled: true,
             Availability: FeatureAvailability.ComingSoon),
         new FeatureDefinition(FeatureId.VoiceChanger,
-            "Feature_VoiceChanger_Name", "Feature_VoiceChanger_Desc", DefaultEnabled: true)
+            "Feature_VoiceChanger_Name", "Feature_VoiceChanger_Desc", DefaultEnabled: true),
+        new FeatureDefinition(FeatureId.RadialMenu,
+            "Feature_RadialMenu_Name", "Feature_RadialMenu_Desc", DefaultEnabled: true)
     };
 
     private static readonly Dictionary<FeatureId, FeatureDefinition> ById = All.ToDictionary(d => d.Id);

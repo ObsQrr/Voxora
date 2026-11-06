@@ -1,7 +1,11 @@
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Windows;
 using KayoneZSoundpad.Services;
+using Microsoft.Win32;
 using NAudio.CoreAudioApi;
 
 namespace KayoneZSoundpad.Audio;
@@ -10,10 +14,14 @@ namespace KayoneZSoundpad.Audio;
 public sealed record EndpointRenameResult(bool Success, bool AlreadyNamed, bool RestartRequired, string? Error);
 
 /// <summary>
-/// Windows ses uç noktalarının görünen adını değiştirir. Uç nokta özellik
-/// deposu yalnızca yönetici tarafından yazılabildiği için işlem, uygulamanın
-/// kendisini <c>--rename-audio-endpoints</c> anahtarıyla yükseltilmiş olarak
-/// çalıştırmasıyla yapılır. Ad değişikliği Discord dahil tüm uygulamalarda görünür.
+/// Windows ses uç noktalarının görünen adını değiştirir.
+///
+/// Yöntem: Windows'un kendi Ses ayarları ekranının kullandığı belgelenmemiş
+/// <c>IPolicyConfig::SetPropertyValue</c> arayüzü (4 argümanlı "fxStore"
+/// imzası — vtable'da <c>ResetDeviceFormat</c> dahil). Uç nokta özellik deposu
+/// yönetici izni istediği için işlem, uygulamanın kendisini
+/// <c>--rename-audio-endpoints</c> anahtarıyla yükseltilmiş olarak çalıştırmasıyla
+/// yapılır.
 /// </summary>
 public static class AudioEndpointNamingService
 {
@@ -21,35 +29,35 @@ public static class AudioEndpointNamingService
     public const string OutName = "Voxora Out Audio";
     public const string InName = "Voxora In Audio";
 
+    private const int EAccessDenied = unchecked((int)0x80070005);
     private static readonly Guid FriendlyNameFormatId = new("a45c254e-df1c-4efd-8020-67d146a850e0");
     private const uint FriendlyNamePid = 14;
-    private const int StgmReadWrite = 0x00000002;
+    private const ushort VtLpwstr = 31;
+
+    public static string LogPath => Path.Combine(Path.GetTempPath(), "voxora-rename.log");
+
+    // ------------------------------------------------------------------ akış
 
     /// <summary>
-    /// Kullanıcıya onay sorar, yükseltilmiş yardımcıyı çalıştırır ve sonucu
-    /// gerçek cihaz adlarını yeniden okuyarak doğrular.
+    /// Önce normal kullanıcı olarak dener (bazı sistemlerde izin verilir), olmazsa
+    /// onay alıp yükseltilmiş yardımcıyı çalıştırır ve sonucu gerçek adlarla doğrular.
     /// </summary>
     public static async Task<EndpointRenameResult> RenameVoxoraEndpointsAsync(Window? owner)
     {
-        var devices = new DeviceService();
-        DeviceEntry? cableIn;
-        DeviceEntry? cableOut;
-        try
-        {
-            cableIn = devices.FindCableRender();
-            cableOut = devices.FindCableCapture();
-        }
-        finally
-        {
-            devices.Dispose();
-        }
-
-        if (cableIn == null || cableOut == null)
+        var devices = FindCableDevices();
+        if (devices is null)
             return new EndpointRenameResult(false, false, false, LocalizationService.T("DeviceName_NotFound"));
 
-        if (IsVoxoraName(cableIn.OriginalName) && IsVoxoraName(cableOut.OriginalName))
+        var (cableIn, cableOut) = devices.Value;
+        if (NamesApplied())
             return new EndpointRenameResult(true, true, false, null);
 
+        // 1) Doğrudan (yükseltmesiz) deneme — bazı makinelerde policy izni vardır.
+        TryRenameBoth(cableOut.Id, cableIn.Id, out _, out var directHr);
+        if (directHr == 0 && await WaitForNamesAsync(1500))
+            return new EndpointRenameResult(true, false, false, null);
+
+        // 2) Kullanıcı onayı + UAC.
         var answer = MessageBox.Show(
             LocalizationService.T("DeviceName_Confirm"),
             LocalizationService.T("DeviceName_Title"),
@@ -66,7 +74,6 @@ public static class AudioEndpointNamingService
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
-            // Kullanıcı UAC penceresini kapattı.
             return new EndpointRenameResult(false, false, false, LocalizationService.T("DeviceName_UacDenied"));
         }
         catch (Exception ex)
@@ -75,19 +82,252 @@ public static class AudioEndpointNamingService
                 LocalizationService.T("DeviceName_Failed", ex.Message));
         }
 
+        // 3) Adlar servis tarafından hemen yayınlanmayabilir; doğrula.
+        if (await WaitForNamesAsync(2500))
+            return new EndpointRenameResult(true, false, false, null);
+
         if (exitCode == 2)
             return new EndpointRenameResult(false, false, false, LocalizationService.T("DeviceName_NotFound"));
 
-        // Adlar servis tarafından hemen yayınlanmayabilir; kısa bir bekleme sonrası doğrula.
-        await Task.Delay(350);
-        if (NamesApplied())
-            return new EndpointRenameResult(true, false, false, null);
+        if (exitCode == 3)
+            return new EndpointRenameResult(false, false, false, LocalizationService.T("DeviceName_AccessDenied"));
 
-        return exitCode == 0
-            ? new EndpointRenameResult(true, false, true, null)
-            : new EndpointRenameResult(false, false, false,
-                LocalizationService.T("DeviceName_Failed", $"exit={exitCode}"));
+        return new EndpointRenameResult(false, false, false,
+            LocalizationService.T("DeviceName_Failed", LastLogHint() ?? $"exit={exitCode}"));
     }
+
+    private static (DeviceEntry In, DeviceEntry Out)? FindCableDevices()
+    {
+        var devices = new DeviceService();
+        try
+        {
+            var cableIn = devices.FindCableRender();
+            var cableOut = devices.FindCableCapture();
+            if (cableIn is null || cableOut is null) return null;
+            return (cableIn, cableOut);
+        }
+        finally
+        {
+            devices.Dispose();
+        }
+    }
+
+    // ------------------------------------------------------------------ yardımcı
+
+    /// <summary>Yükseltilmiş süreçte çalışır. 0 = değişti, 2 = kablo yok, 3 = izin yok, 4 = başka hata.</summary>
+    public static int RenameElevated()
+    {
+        Log($"=== elevated start admin={IsAdministrator()} ===");
+        try
+        {
+            var found = FindCableDevices();
+            if (found is null)
+            {
+                Log("cable endpoints not found");
+                return 2;
+            }
+
+            var (cableIn, cableOut) = found.Value;
+
+            // 1) Policy config ile (Ses ayarlarıyla aynı yol).
+            TryRenameBoth(cableOut.Id, cableIn.Id, out var hrOut, out var hrIn);
+
+            if (hrOut == 0 && hrIn == 0 && WaitForNames(2000))
+            {
+                Log("policy rename verified");
+                return 0;
+            }
+
+            // 2) Kayıt defteri + ses servisi (policy reddederse).
+            Log("policy failed, trying registry fallback");
+            var regOut = TryWriteRegistry(cableOut.Id, OutName);
+            var regIn = TryWriteRegistry(cableIn.Id, InName);
+            Log($"registry out={regOut} in={regIn}");
+
+            if (regOut && regIn)
+            {
+                RestartAudioServices();
+                if (WaitForNames(6000))
+                {
+                    Log("registry rename verified after service restart");
+                    return 0;
+                }
+            }
+
+            if (NamesApplied())
+            {
+                Log("names applied (late)");
+                return 0;
+            }
+
+            var denied = hrOut == EAccessDenied || hrIn == EAccessDenied;
+            Log($"rename failed hrOut=0x{hrOut:X8} hrIn=0x{hrIn:X8} denied={denied}");
+            return denied ? 3 : 4;
+        }
+        catch (Exception ex)
+        {
+            Log("exception: " + ex);
+            return 4;
+        }
+    }
+
+    public static bool NamesApplied()
+    {
+        var devices = new DeviceService();
+        try
+        {
+            var cableIn = devices.FindCableRender();
+            var cableOut = devices.FindCableCapture();
+            return cableIn != null && cableOut != null
+                && IsVoxoraName(cableIn.OriginalName) && IsVoxoraName(cableOut.OriginalName);
+        }
+        finally
+        {
+            devices.Dispose();
+        }
+    }
+
+    private static async Task<bool> WaitForNamesAsync(int timeoutMs)
+    {
+        var deadline = Environment.TickCount64 + timeoutMs;
+        do
+        {
+            if (NamesApplied()) return true;
+            await Task.Delay(250);
+        } while (Environment.TickCount64 < deadline);
+        return NamesApplied();
+    }
+
+    private static bool WaitForNames(int timeoutMs)
+    {
+        var deadline = Environment.TickCount64 + timeoutMs;
+        do
+        {
+            if (NamesApplied()) return true;
+            Thread.Sleep(250);
+        } while (Environment.TickCount64 < deadline);
+        return NamesApplied();
+    }
+
+    internal static bool IsVoxoraName(string name)
+        => name.Contains("voxora in audio", StringComparison.OrdinalIgnoreCase)
+           || name.Contains("voxora out audio", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryRenameBoth(string outId, string inId, out int outHr, out int inHr)
+    {
+        outHr = SetFriendlyName(outId, OutName);
+        inHr = SetFriendlyName(inId, InName);
+        return outHr == 0 && inHr == 0;
+    }
+
+    /// <summary>IPolicyConfig üzerinden PKEY_Device_FriendlyName yazar.</summary>
+    private static int SetFriendlyName(string deviceId, string name)
+    {
+        IntPtr ptr = IntPtr.Zero;
+        try
+        {
+            var policy = (IPolicyConfig)new PolicyConfigClient();
+            var key = new PropertyKey { FormatId = FriendlyNameFormatId, PropertyId = FriendlyNamePid };
+            ptr = Marshal.StringToCoTaskMemUni(name);
+            var value = new PropVariant { VariantType = VtLpwstr, Pointer = ptr };
+
+            int hr = policy.SetPropertyValue(deviceId, false, ref key, ref value);
+            Log($"SetPropertyValue({Short(deviceId)}, '{name}') hr=0x{hr:X8}");
+            return hr;
+        }
+        catch (Exception ex)
+        {
+            Log($"SetPropertyValue({Short(deviceId)}) exception: {ex.Message}");
+            return unchecked((int)0x80004005);
+        }
+        finally
+        {
+            if (ptr != IntPtr.Zero) Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
+    // ------------------------------------------------------------------ kayıt defteri yedeği
+
+    private static bool TryWriteRegistry(string deviceId, string name)
+    {
+        try
+        {
+            int start = deviceId.LastIndexOf('{');
+            int end = deviceId.LastIndexOf('}');
+            if (start < 0 || end <= start) return false;
+            var endpointGuid = deviceId[(start + 1)..end];
+            var flow = deviceId.Contains("{0.0.0.", StringComparison.Ordinal) ? "Render" : "Capture";
+            var path = $@"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\{flow}\{{{endpointGuid}}}\Properties";
+
+            using var key = Registry.LocalMachine.OpenSubKey(path,
+                RegistryKeyPermissionCheck.ReadWriteSubTree,
+                RegistryRights.SetValue | RegistryRights.ReadPermissions | RegistryRights.ChangePermissions);
+            if (key == null)
+            {
+                Log($"registry key not found: {path}");
+                return false;
+            }
+
+            key.SetValue("{a45c254e-df1c-4efd-8020-67d146a850e0},14", name, RegistryValueKind.String);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log("registry write failed: " + ex.Message);
+            return false;
+        }
+    }
+
+    private static void RestartAudioServices()
+    {
+        try
+        {
+            Log("restarting audio services");
+            Sc("stop Audiosrv");
+            Sc("stop AudioEndpointBuilder");
+            Thread.Sleep(600);
+            Sc("start AudioEndpointBuilder");
+            Thread.Sleep(800);
+            Sc("start Audiosrv");
+            Thread.Sleep(800);
+            Log("audio services restarted");
+        }
+        catch (Exception ex)
+        {
+            Log("service restart failed: " + ex.Message);
+        }
+    }
+
+    private static void Sc(string arguments)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo("sc.exe", arguments)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
+            process?.WaitForExit(25000);
+        }
+        catch (Exception ex)
+        {
+            Log($"sc {arguments} failed: {ex.Message}");
+        }
+    }
+
+    private static bool IsAdministrator()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch { return false; }
+    }
+
+    // ------------------------------------------------------------------ süreç
 
     private static async Task<int> RunElevatedHelperAsync()
     {
@@ -109,115 +349,31 @@ public static class AudioEndpointNamingService
         return process.ExitCode;
     }
 
-    /// <summary>Yükseltilmiş süreçte çalışır. 0 = değişti, 2 = kablo yok, 3 = izin yok.</summary>
-    public static int RenameElevated()
+    // ------------------------------------------------------------------ log
+
+    internal static void Log(string message)
     {
         try
         {
-            var devices = new DeviceService();
-            var cableIn = devices.FindCableRender();
-            var cableOut = devices.FindCableCapture();
-            devices.Dispose();
-
-            if (cableIn == null || cableOut == null) return 2;
-
-            var okOut = TrySetFriendlyName(cableOut.Id, OutName);
-            var okIn = TrySetFriendlyName(cableIn.Id, InName);
-            if (!okOut || !okIn) return 3;
-            return 0;
+            File.AppendAllText(LogPath,
+                DateTime.Now.ToString("HH:mm:ss.fff") + " " + message + Environment.NewLine);
         }
-        catch
-        {
-            return 1;
-        }
+        catch { }
     }
 
-    public static bool NamesApplied()
-    {
-        var devices = new DeviceService();
-        try
-        {
-            var cableIn = devices.FindCableRender();
-            var cableOut = devices.FindCableCapture();
-            return cableIn != null && cableOut != null
-                && IsVoxoraName(cableIn.OriginalName) && IsVoxoraName(cableOut.OriginalName);
-        }
-        finally
-        {
-            devices.Dispose();
-        }
-    }
-
-    internal static bool IsVoxoraName(string name)
-        => name.Contains("voxora in audio", StringComparison.OrdinalIgnoreCase)
-           || name.Contains("voxora out audio", StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Uç noktanın PKEY_Device_FriendlyName değerini yazar. Başarısız olursa
-    /// kayıt defteri yolunu dener; her iki durumda da yalnızca ad değişir.
-    /// </summary>
-    internal static bool TrySetFriendlyName(string deviceId, string name)
-    {
-        if (TrySetThroughPropertyStore(deviceId, name)) return true;
-        return TrySetThroughRegistry(deviceId, name);
-    }
-
-    private static bool TrySetThroughPropertyStore(string deviceId, string name)
-    {
-        IMMDevice? device = null;
-        IPropertyStore? store = null;
-        IntPtr valuePtr = IntPtr.Zero;
-        try
-        {
-            var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
-            if (enumerator.GetDevice(deviceId, out device) != 0 || device == null) return false;
-            if (device.OpenPropertyStore(StgmReadWrite, out store) != 0 || store == null) return false;
-
-            var key = new PropertyKey { FormatId = FriendlyNameFormatId, PropertyId = FriendlyNamePid };
-            valuePtr = Marshal.StringToCoTaskMemUni(name);
-            var value = new PropVariant { VariantType = 31, Pointer = valuePtr };
-
-            if (store.SetValue(ref key, ref value) != 0) return false;
-            return store.Commit() == 0;
-        }
-        catch
-        {
-            return false;
-        }
-        finally
-        {
-            if (valuePtr != IntPtr.Zero) Marshal.FreeCoTaskMem(valuePtr);
-            if (store != null) Marshal.ReleaseComObject(store);
-            if (device != null) Marshal.ReleaseComObject(device);
-        }
-    }
-
-    private static bool TrySetThroughRegistry(string deviceId, string name)
+    private static string? LastLogHint()
     {
         try
         {
-            // "{0.0.1.00000000}.{guid}" → son süslü parantezli bölüm.
-            int start = deviceId.LastIndexOf('{');
-            int end = deviceId.LastIndexOf('}');
-            if (start < 0 || end <= start) return false;
-            var endpointGuid = deviceId[(start + 1)..end];
-
-            var flow = deviceId.Contains("{0.0.0.", StringComparison.Ordinal) ? "Render" : "Capture";
-            var path = $@"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\{flow}\{{{endpointGuid}}}\Properties";
-
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(path, writable: true);
-            if (key == null) return false;
-            key.SetValue(
-                "{a45c254e-df1c-4efd-8020-67d146a850e0},14",
-                name,
-                Microsoft.Win32.RegistryValueKind.String);
-            return true;
+            if (!File.Exists(LogPath)) return null;
+            var lines = File.ReadAllLines(LogPath);
+            return lines.Length == 0 ? null : lines[^1];
         }
-        catch
-        {
-            return false;
-        }
+        catch { return null; }
     }
+
+    private static string Short(string deviceId)
+        => deviceId.Length <= 12 ? deviceId : "…" + deviceId[^10..];
 
     // ------------------------------------------------------------------ COM
 
@@ -240,36 +396,31 @@ public static class AudioEndpointNamingService
         public IntPtr Pointer3;
     }
 
-    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    private class MMDeviceEnumeratorComObject { }
+    [ComImport, Guid("870af99c-171d-4f9e-af0d-e63df40c2bc9")]
+    private class PolicyConfigClient { }
 
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
-    private interface IMMDeviceEnumerator
+    /// <summary>
+    /// Windows 7+ vtable: ResetDeviceFormat 3. slot; Get/SetPropertyValue ek
+    /// <c>bool fxStore</c> parametresi alır. Bu imza olmadan çağrılar S_OK dönüp
+    /// hiçbir şey yazmıyordu (yaşanmış hata).
+    /// </summary>
+    [ComImport, Guid("f8679f50-850a-41cf-9c72-430f290290c8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPolicyConfig
     {
-        int EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr devices);
-        int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
-        int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice device);
-        int RegisterEndpointNotificationCallback(IntPtr client);
-        int UnregisterEndpointNotificationCallback(IntPtr client);
-    }
-
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("D666063F-1587-4E43-81F1-B948E807363F")]
-    private interface IMMDevice
-    {
-        int Activate(ref Guid iid, int dwClsCtx, IntPtr activationParams,
-            [MarshalAs(UnmanagedType.IUnknown)] out object? ppInterface);
-        int OpenPropertyStore(int stgmAccess, out IPropertyStore properties);
-        int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
-        int GetState(out int state);
-    }
-
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99")]
-    private interface IPropertyStore
-    {
-        int GetCount(out int propertyCount);
-        int GetAt(int property, out PropertyKey key);
-        int GetValue(ref PropertyKey key, out PropVariant value);
-        int SetValue(ref PropertyKey key, ref PropVariant value);
-        int Commit();
+        [PreserveSig] int GetMixFormat([MarshalAs(UnmanagedType.LPWStr)] string id, out IntPtr format);
+        [PreserveSig] int GetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id, int isDefault, out IntPtr format);
+        [PreserveSig] int ResetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id);
+        [PreserveSig] int SetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr endpointFormat, IntPtr mixFormat);
+        [PreserveSig] int GetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string id, int isDefault, out long period, out long minPeriod);
+        [PreserveSig] int SetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string id, ref long period);
+        [PreserveSig] int GetShareMode([MarshalAs(UnmanagedType.LPWStr)] string id, out IntPtr mode);
+        [PreserveSig] int SetShareMode([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr mode);
+        [PreserveSig] int GetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string id,
+            [MarshalAs(UnmanagedType.Bool)] bool fxStore, ref PropertyKey key, out PropVariant value);
+        [PreserveSig] int SetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string id,
+            [MarshalAs(UnmanagedType.Bool)] bool fxStore, ref PropertyKey key, ref PropVariant value);
+        [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+        [PreserveSig] int SetEndpointVisibility([MarshalAs(UnmanagedType.LPWStr)] string id, int visible);
     }
 }
