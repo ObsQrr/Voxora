@@ -2,7 +2,7 @@
 ; Derleme: ISCC.exe installer\Voxora.iss  →  dist\Voxora-Setup.exe
 
 #define MyAppName "Voxora"
-#define MyAppVersion "2.1.1"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "Voxora"
 #define MyAppExeName "Voxora.exe"
 
@@ -15,7 +15,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist
-OutputBaseFilename=Voxora-2.1.1-setup
+OutputBaseFilename=Voxora-2.2.0-setup
 SetupIconFile=..\src\KayoneZSoundpad\Assets\app.ico
 Compression=lzma2/max
 SolidCompression=yes
