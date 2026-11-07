@@ -142,6 +142,36 @@ public class VoxoraV2Tests : IDisposable
     }
 
     [Fact]
+    public void RadialPaging_ExactlyEight_IsSinglePage()
+    {
+        var items = Enumerable.Range(0, 8).ToArray();
+        Assert.Equal(1, RadialPaging.PageCount(items.Length));
+        Assert.Equal(items, RadialPaging.PageItems(items, 0));
+        Assert.Equal(0, RadialPaging.Next(0, 1, items.Length));
+    }
+
+    [Fact]
+    public void SettingsWithoutRadialHotkey_GetsF1Default()
+    {
+        var path = System.IO.Path.Combine(_dir.Path, "settings-no-radial.json");
+        System.IO.File.WriteAllText(path, "{\"theme\":\"dark\",\"language\":\"tr\"}");
+
+        var reloaded = new SettingsService(path).Settings.RadialMenuHotkey!;
+        Assert.Equal(0x70, reloaded.VirtualKey);
+        Assert.Equal(HotkeyModifiers.None, reloaded.Modifiers);
+    }
+
+    [Fact]
+    public void SettingsWithClearedRadialHotkey_StaysCleared()
+    {
+        var path = System.IO.Path.Combine(_dir.Path, "settings-null-radial.json");
+        System.IO.File.WriteAllText(path,
+            "{\"theme\":\"dark\",\"language\":\"tr\",\"radialMenuHotkey\":null}");
+
+        Assert.Null(new SettingsService(path).Settings.RadialMenuHotkey);
+    }
+
+    [Fact]
     public void RadialPaging_WrapsBothDirections()
     {
         Assert.Equal(2, RadialPaging.Next(0, -1, 18));

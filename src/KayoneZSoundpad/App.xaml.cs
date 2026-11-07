@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -20,6 +21,24 @@ public partial class App : System.Windows.Application
         // istisnalar da teşhis günlüğüne yazılsın.
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             LogDiagnostic("APPDOMAIN EXCEPTION: " + e.ExceptionObject);
+
+        // İsteğe bağlı XAML bağlama teşhisi (VOXORA_BINDING_TRACE=1).
+        if (Environment.GetEnvironmentVariable("VOXORA_BINDING_TRACE") == "1")
+            EnableBindingTrace();
+    }
+
+    private static void EnableBindingTrace()
+    {
+        try
+        {
+            PresentationTraceSources.Refresh();
+            var listener = new TextWriterTraceListener(
+                Path.Combine(Path.GetTempPath(), "voxora-bindings.log"));
+            PresentationTraceSources.DataBindingSource.Listeners.Add(listener);
+            PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
+            Trace.AutoFlush = true;
+        }
+        catch { }
     }
 
     internal static void LogDiagnostic(string message)

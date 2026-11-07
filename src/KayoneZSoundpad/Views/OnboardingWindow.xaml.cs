@@ -306,6 +306,12 @@ public partial class OnboardingWindow : Window
             RenameStatus.Text = result.AlreadyNamed
                 ? LocalizationService.T("DeviceName_AlreadyNamed")
                 : LocalizationService.T("DeviceName_Done");
+
+            _vm.RefreshDevices();
+            _ready = false;
+            SelectDevices();
+            _ready = true;
+            UpdateSummary();
         }
         else if (result.Error == null)
         {

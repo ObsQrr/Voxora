@@ -174,6 +174,7 @@ public partial class SettingsWindow : Window
                 DeviceNameStatus.Text = result.AlreadyNamed
                     ? LocalizationService.T("DeviceName_AlreadyNamed")
                     : LocalizationService.T("DeviceName_Done");
+                _vm.RefreshDevices();
             }
             else if (result.Error == null)
             {

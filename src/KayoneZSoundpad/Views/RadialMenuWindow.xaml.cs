@@ -85,6 +85,7 @@ public partial class RadialMenuWindow : Window
 
         _autoClose = new DispatcherTimer { Interval = TimeSpan.FromSeconds(12) };
         _autoClose.Tick += (_, _) => CloseOverlay();
+        _autoClose.Start();
 
         SourceInitialized += (_, _) =>
         {
@@ -106,6 +107,7 @@ public partial class RadialMenuWindow : Window
 
     private void ChangePage(int delta)
     {
+        if (_closing) return;
         if (RadialPaging.PageCount(_allItems.Count) <= 1) return;
         ShowPage(RadialPaging.Next(_page, delta, _allItems.Count), animate: true, direction: delta);
         _autoClose.Stop();

@@ -159,12 +159,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         LoadSounds();
         RefreshDevices();
-        // VB-CABLE kurulduysa ve Çıkış Voxora In Audio değilse otomatik kur (bozuk/eksik ayar self-heal)
+        // VB-CABLE kurulduysa ve kayıtlı çıkış artık yoksa otomatik kur.
+        // Kullanıcının bilinçli olarak seçtiği geçerli bir çıkışı EZME.
         try
         {
             var cableIn = _devices.FindCableRender();
-            bool outputIsCable = Settings.OutputDeviceId != null && RenderDevices.Any(d => d.Id == Settings.OutputDeviceId && d.IsCable);
-            if (cableIn != null && !outputIsCable) AutoConfigureCable();
+            bool outputMissing = Settings.OutputDeviceId == null
+                                 || RenderDevices.All(d => d.Id != Settings.OutputDeviceId);
+            if (cableIn != null && outputMissing) AutoConfigureCable();
         }
         catch { }
     }
@@ -370,9 +372,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             if (s.Hotkey?.IsValid != true) continue;
             if (seen.TryGetValue(s.Hotkey, out var owner))
+            {
+                // Çakışan ses kısayolu kaydedilmez; aksi halde sözlükteki
+                // stop-all/radial kaydını sessizce ezerdi.
                 conflicts.Add(LocalizationService.T("Hotkey_ConflictBoth", s.Hotkey, owner, s.Name));
-            else
-                seen[s.Hotkey] = s.Name;
+                continue;
+            }
+            seen[s.Hotkey] = s.Name;
             _hotkeys.Register(s.Hotkey, s.Id);
         }
 

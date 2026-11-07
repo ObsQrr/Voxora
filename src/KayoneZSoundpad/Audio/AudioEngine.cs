@@ -237,9 +237,9 @@ public class AudioEngine : IDisposable
 
     private bool TryOpenOutput()
     {
+        MMDevice? device = null;
         try
         {
-            MMDevice? device = null;
             try
             {
                 device = _outputDeviceId == null
@@ -252,22 +252,25 @@ public class AudioEngine : IDisposable
             _outMain = new WasapiOut(device, AudioClientShareMode.Shared, useEventSync: true, _engineLatency);
             _outMain.Init(_bufMain!);
             _outMain.Play();
-            device.Dispose();
             return true;
         }
         catch (Exception ex)
         {
             EngineError?.Invoke(LocalizationService.T("Err_OutputStart", ex.Message));
-            _outMain = null;
+            SafeDispose(ref _outMain);
             return false;
+        }
+        finally
+        {
+            try { device?.Dispose(); } catch { }
         }
     }
 
     private bool TryOpenMonitor()
     {
+        MMDevice? device = null;
         try
         {
-            MMDevice? device = null;
             try
             {
                 device = _monitorDeviceId == null
@@ -280,13 +283,16 @@ public class AudioEngine : IDisposable
             _outMonitor = new WasapiOut(device, AudioClientShareMode.Shared, useEventSync: true, _engineLatency);
             _outMonitor.Init(_bufMonitor!);
             _outMonitor.Play();
-            device.Dispose();
             return true;
         }
         catch
         {
-            _outMonitor = null;
+            SafeDispose(ref _outMonitor);
             return false;
+        }
+        finally
+        {
+            try { device?.Dispose(); } catch { }
         }
     }
 
@@ -565,7 +571,6 @@ public class AudioEngine : IDisposable
 
             // ana çıkışı karıştır + limiter
             fxPeak = 0f; outPeak = 0f;
-            int framesFx = fxSamples / Channels;
             for (int i = 0; i < frames * Channels; i++)
             {
                 float fx = i < fxSamples ? _fxBuf[i] * fxGain : 0f;

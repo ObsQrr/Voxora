@@ -51,7 +51,6 @@ public sealed class RadialMenuControl : FrameworkElement
     private int _hover = -1;
     private int _pageIndex;
     private int _pageCount = 1;
-    private double _openProgress = 1;
     private readonly DispatcherTimer _transitionTimer;
     private readonly Stopwatch _transitionWatch = new();
     private double _transitionProgress = 1;
@@ -73,6 +72,7 @@ public sealed class RadialMenuControl : FrameworkElement
             Interval = TimeSpan.FromMilliseconds(16)
         };
         _transitionTimer.Tick += (_, _) => TickTransition();
+        Unloaded += (_, _) => _transitionTimer.Stop();
     }
 
     public void SetItems(IReadOnlyList<RadialMenuItem> items)
@@ -130,12 +130,6 @@ public sealed class RadialMenuControl : FrameworkElement
         InvalidateVisual();
     }
 
-    public void SetOpenProgress(double progress)
-    {
-        _openProgress = Math.Clamp(progress, 0, 1);
-        InvalidateVisual();
-    }
-
     private double OuterRadius => Math.Min(ActualWidth, ActualHeight) / 2 - 12;
     private double InnerRadius => Math.Max(64, OuterRadius * 0.46);
 
@@ -143,11 +137,8 @@ public sealed class RadialMenuControl : FrameworkElement
     {
         base.OnRender(dc);
 
-        double alpha = _openProgress;
-        if (alpha <= 0.01) return;
-
         var center = new Point(ActualWidth / 2, ActualHeight / 2);
-        double outer = OuterRadius * (0.92 + 0.08 * alpha);
+        double outer = OuterRadius;
         double inner = InnerRadius;
         if (outer <= inner + 10) return;
 
@@ -157,7 +148,7 @@ public sealed class RadialMenuControl : FrameworkElement
         var textPrimary = Resource("Brush.TextPrimary", Color.FromRgb(0xF4, 0xED, 0xE3));
         var textMuted = Resource("Brush.TextMuted", Color.FromRgb(0x7F, 0x72, 0x63));
 
-        dc.PushOpacity(alpha);
+        dc.PushOpacity(1);
 
         if (_items.Count == 0 && !_transitionActive)
         {

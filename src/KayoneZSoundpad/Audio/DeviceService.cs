@@ -30,6 +30,7 @@ public class DeviceService : IDisposable
     private System.Threading.Timer? _notifyTimer;
     private string? _lastSignature;
     private int _disposed;
+    private readonly SynchronizationContext? _sync;
 
     /// <summary>
     /// Görünür aygıt kümesi gerçekten değiştiğinde tetiklenir. Windows bazı
@@ -40,6 +41,9 @@ public class DeviceService : IDisposable
 
     public DeviceService()
     {
+        // Core Audio nesneleri oluşturuldukları bağlamda kullanılmalı; imza
+        // kontrolünü UI bağlamına geri gönder (yoksa satır içi çalışır).
+        _sync = SynchronizationContext.Current;
         _notificationClient = new DeviceNotificationClient(ScheduleNotify);
         _enumerator.RegisterEndpointNotificationCallback(_notificationClient);
         _lastSignature = BuildSignature();
@@ -58,6 +62,23 @@ public class DeviceService : IDisposable
     }
 
     private void PublishIfChanged()
+    {
+        if (Volatile.Read(ref _disposed) != 0) return;
+
+        if (_sync != null)
+        {
+            try
+            {
+                _sync.Post(_ => PublishIfChangedCore(), null);
+                return;
+            }
+            catch { /* bağlam kapanmışsa satır içi dene */ }
+        }
+
+        PublishIfChangedCore();
+    }
+
+    private void PublishIfChangedCore()
     {
         if (Volatile.Read(ref _disposed) != 0) return;
 
