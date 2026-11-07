@@ -4,18 +4,28 @@ Windows ses efekti pedalı (soundboard) uygulaması. Ses efektlerini mikrofon y�
 
 ## Sürüm
 
-**v2.2.0** — .NET 8 / WPF / NAudio
+**v2.2.1** — .NET 8 / WPF / NAudio
 
 | Öğe | Değer |
 |-----|-------|
 | Uygulama | `Voxora.exe` |
-| Kurulum paketi | `Voxora-2.2.0-setup.exe` |
-| Taşınabilir | `Voxora-v2.2.0-win-x64.zip` |
+| Kurulum paketi | `Voxora-2.2.1-setup.exe` |
+| Taşınabilir | `Voxora-v2.2.1-win-x64.zip` |
 | Arayüz dilleri | Türkçe (varsayılan), İngilizce |
-| Testler | 120/120 geçti (.NET 8, Release) |
-| Durum | v2.2.0 GitHub sürümü |
+| Testler | 123/123 geçti (.NET 8, Release) |
+| Durum | v2.2.1 GitHub sürümü |
 
 > Sürüm paketlerinin SHA-256 değerleri GitHub Release sayfasında yer alır.
+
+### v2.2.1 Düzeltmeleri
+
+- Kısayol çakışmasında ses kısayolu artık stop-all/radyal kaydını ezmiyor.
+- Başarısız çıkış/monitör açılışında aygıt tutamacı sızıntısı giderildi.
+- Aygıt olayı imzası UI bağlamında hesaplanıyor (debounce güvenilir).
+- Radyal menü: açılışta otomatik kapanma sayacı, kapanış yarışı ve animasyon
+  zamanlayıcısı düzeltmeleri.
+- Cihaz adı değişiminden sonra listeler anında tazeleniyor.
+- Kullanıcının seçtiği geçerli çıkış, açılışta otomatik kurulumla ezilmiyor.
 
 ### v2.2.0 Yenilikleri
 
@@ -133,7 +143,7 @@ Kurulum sonrası Windows Ses Ayarlarında iki yeni sanal cihaz görünür: `CABL
 
 ### 2. Voxora'yı kurun
 
-`Voxora-2.2.0-setup.exe` dosyasını çalıştırın. Kurulum:
+`Voxora-2.2.1-setup.exe` dosyasını çalıştırın. Kurulum:
 
 - Kullanıcı bazında (`%LOCALAPPDATA%\Programs\Voxora`) — yönetici hakları **gerekmez**
 - Başlat Menüsü kısayolu oluşturur
@@ -141,7 +151,7 @@ Kurulum sonrası Windows Ses Ayarlarında iki yeni sanal cihaz görünür: `CABL
 - "Windows açılışında başlat" seçeneği işaretlenirse `HKCU\...\Run` anahtarına yazılır
 - Kaldırma işlemi **`%APPDATA%\KayoneZSoundpad`** klasöründeki kullanıcı verilerini (ayarlar, ses kitaplığı) **silmez**
 
-Taşınabilir sürüm: `Voxora-v2.2.0-win-x64.zip` arşivini bir klasöre açıp `Voxora.exe`
+Taşınabilir sürüm: `Voxora-v2.2.1-win-x64.zip` arşivini bir klasöre açıp `Voxora.exe`
 çalıştırın; .NET kurulumu gerekmez.
 
 ### 3. İlk çalıştırma ve ayarlar
@@ -208,7 +218,7 @@ dotnet publish src\KayoneZSoundpad\KayoneZSoundpad.csproj -c Release -r win-x64 
 ISCC.exe installer\Voxora.iss
 ```
 
-Çıktı: `dist\Voxora-2.2.0-setup.exe`
+Çıktı: `dist\Voxora-2.2.1-setup.exe`
 
 ---
 
