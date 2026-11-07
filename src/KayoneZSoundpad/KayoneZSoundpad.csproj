@@ -12,7 +12,7 @@
     <AssemblyName>Voxora</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>2.1.0</Version>
+    <Version>2.1.1</Version>
     <Product>Voxora</Product>
     <Company>Voxora</Company>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

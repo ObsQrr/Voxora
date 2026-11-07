@@ -261,10 +261,9 @@ public partial class MainWindow : Window
 
         var visible = System.Windows.Data.CollectionViewSource.GetDefaultView(_vm.Sounds)
             .Cast<SoundCardViewModel>()
-            .Take(8)
             .ToList();
         if (visible.Count == 0)
-            visible = _vm.Sounds.Take(8).ToList();
+            visible = _vm.Sounds.ToList();
 
         var items = visible
             .Select(card => new RadialMenuItem(card.Name, "", card))

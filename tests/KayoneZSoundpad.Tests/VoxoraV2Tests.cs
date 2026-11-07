@@ -5,6 +5,7 @@ using KayoneZSoundpad.Audio;
 using KayoneZSoundpad.Features;
 using KayoneZSoundpad.Models;
 using KayoneZSoundpad.Services;
+using KayoneZSoundpad.Views;
 
 namespace KayoneZSoundpad.Tests;
 
@@ -127,5 +128,26 @@ public class VoxoraV2Tests : IDisposable
         Assert.Equal(0x71, reloaded.VirtualKey);
         Assert.Equal(HotkeyModifiers.Ctrl, reloaded.Modifiers);
         Assert.Equal("Ctrl + F2", reloaded.ToString());
+    }
+
+    [Fact]
+    public void RadialPaging_SplitsIntoPagesOfEight()
+    {
+        var items = Enumerable.Range(0, 18).ToArray();
+
+        Assert.Equal(3, RadialPaging.PageCount(items.Length));
+        Assert.Equal(new[] { 0, 1, 2, 3, 4, 5, 6, 7 }, RadialPaging.PageItems(items, 0));
+        Assert.Equal(new[] { 8, 9, 10, 11, 12, 13, 14, 15 }, RadialPaging.PageItems(items, 1));
+        Assert.Equal(new[] { 16, 17 }, RadialPaging.PageItems(items, 2));
+    }
+
+    [Fact]
+    public void RadialPaging_WrapsBothDirections()
+    {
+        Assert.Equal(2, RadialPaging.Next(0, -1, 18));
+        Assert.Equal(2, RadialPaging.Next(1, 1, 18));
+        Assert.Equal(0, RadialPaging.Next(2, 1, 18));
+        Assert.Equal(0, RadialPaging.Next(0, 1, 3));
+        Assert.Equal(0, RadialPaging.Next(0, -1, 0));
     }
 }

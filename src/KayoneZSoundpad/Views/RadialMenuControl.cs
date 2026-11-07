@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using KayoneZSoundpad.Services;
 using Point = System.Windows.Point;
 using Color = System.Windows.Media.Color;
@@ -15,6 +17,29 @@ namespace KayoneZSoundpad.Views;
 /// <summary>Daire menüsündeki tek dilim.</summary>
 public sealed record RadialMenuItem(string Title, string Subtitle, object Payload);
 
+/// <summary>Daire menüsünün sayfalama matematiği (tekerlekle diğer sesler).</summary>
+internal static class RadialPaging
+{
+    public const int PageSize = 8;
+
+    public static int PageCount(int itemCount)
+        => Math.Max(1, (itemCount + PageSize - 1) / PageSize);
+
+    public static IReadOnlyList<T> PageItems<T>(IReadOnlyList<T> items, int page)
+    {
+        if (items.Count == 0) return Array.Empty<T>();
+        int pages = PageCount(items.Count);
+        int normalized = ((page % pages) + pages) % pages;
+        return items.Skip(normalized * PageSize).Take(PageSize).ToArray();
+    }
+
+    public static int Next(int page, int delta, int itemCount)
+    {
+        int pages = PageCount(itemCount);
+        return ((page + delta) % pages + pages) % pages;
+    }
+}
+
 /// <summary>
 /// Oyunun üstünde açılan daire menüsü. Segmentler fareyle seçilir; metinler
 /// kesilmeden sığdırılır. Tema renkleri her çizimde canlı okunur.
@@ -22,22 +47,86 @@ public sealed record RadialMenuItem(string Title, string Subtitle, object Payloa
 public sealed class RadialMenuControl : FrameworkElement
 {
     private IReadOnlyList<RadialMenuItem> _items = Array.Empty<RadialMenuItem>();
+    private IReadOnlyList<RadialMenuItem> _oldItems = Array.Empty<RadialMenuItem>();
     private int _hover = -1;
+    private int _pageIndex;
+    private int _pageCount = 1;
     private double _openProgress = 1;
+    private readonly DispatcherTimer _transitionTimer;
+    private readonly Stopwatch _transitionWatch = new();
+    private double _transitionProgress = 1;
+    private int _transitionDirection = 1;
+    private bool _transitionActive;
 
     public event Action<int>? ItemActivated;
     public event Action? Dismissed;
+
+    /// <summary>Tekerlek çevrildi: -1 önceki sayfa, +1 sonraki.</summary>
+    public event Action<int>? PageRequested;
 
     public RadialMenuControl()
     {
         Focusable = false;
         SnapsToDevicePixels = true;
+        _transitionTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _transitionTimer.Tick += (_, _) => TickTransition();
     }
 
     public void SetItems(IReadOnlyList<RadialMenuItem> items)
     {
         _items = items;
         _hover = -1;
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Sayfayı yumuşak geçişle değiştirir: eski dilimler yön yönünde dönerek
+    /// solar, yenileri karşıdan gelir. Hareket azaltma açıksa anında değişir.
+    /// </summary>
+    public void TransitionTo(IReadOnlyList<RadialMenuItem> items, int direction)
+    {
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            SetItems(items);
+            return;
+        }
+
+        _oldItems = _items;
+        _items = items;
+        _hover = -1;
+        _transitionDirection = direction >= 0 ? 1 : -1;
+        _transitionProgress = 0;
+        _transitionActive = true;
+        _transitionWatch.Restart();
+        _transitionTimer.Start();
+        InvalidateVisual();
+    }
+
+    private void TickTransition()
+    {
+        double raw = _transitionWatch.Elapsed.TotalMilliseconds / 190.0;
+        if (raw >= 1)
+        {
+            _transitionProgress = 1;
+            _transitionActive = false;
+            _transitionTimer.Stop();
+        }
+        else
+        {
+            _transitionProgress = raw;
+        }
+        InvalidateVisual();
+    }
+
+    private static double EaseOut(double t) => 1 - Math.Pow(1 - t, 3);
+
+    public void SetPaging(int pageIndex, int pageCount)
+    {
+        _pageIndex = Math.Max(0, pageIndex);
+        _pageCount = Math.Max(1, pageCount);
         InvalidateVisual();
     }
 
@@ -70,7 +159,7 @@ public sealed class RadialMenuControl : FrameworkElement
 
         dc.PushOpacity(alpha);
 
-        if (_items.Count == 0)
+        if (_items.Count == 0 && !_transitionActive)
         {
             dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(0xF2, 0x1A, 0x16, 0x12)),
                 new Pen(new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0x5C, 0x35)), 1),
@@ -80,7 +169,56 @@ public sealed class RadialMenuControl : FrameworkElement
             return;
         }
 
-        int count = _items.Count;
+        if (_transitionActive)
+        {
+            double t = EaseOut(_transitionProgress);
+            DrawPage(dc, _oldItems, -1, 1 - t, center, inner, outer,
+                _transitionDirection * 20 * t, accent, panel, divider, textPrimary, textMuted);
+            DrawPage(dc, _items, -1, t, center, inner, outer,
+                -_transitionDirection * 20 * (1 - t), accent, panel, divider, textPrimary, textMuted);
+        }
+        else
+        {
+            DrawPage(dc, _items, _hover, 1, center, inner, outer, 0,
+                accent, panel, divider, textPrimary, textMuted);
+        }
+
+        // merkez disk
+        dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(0xF5, 0x10, 0x0E, 0x0C)),
+            new Pen(new SolidColorBrush(Color.FromArgb(0x55, divider.R, divider.G, divider.B)), 1),
+            center, inner - 8, inner - 8);
+
+        bool paged = _pageCount > 1;
+        DrawCentered(dc, "VOXORA", new Point(center.X, center.Y + (paged ? -18 : -10)), 15, accent,
+            inner * 1.4, FontWeights.SemiBold);
+
+        if (paged)
+        {
+            DrawCentered(dc, LocalizationService.T("Radial_PagingHint", _pageIndex + 1, _pageCount),
+                new Point(center.X, center.Y + 3), 9.5, textMuted, inner * 1.7);
+            DrawCentered(dc, LocalizationService.T("Radial_CloseHint"),
+                new Point(center.X, center.Y + 21), 9, textMuted, inner * 1.7);
+        }
+        else
+        {
+            DrawCentered(dc, LocalizationService.T("Radial_CloseHint"),
+                new Point(center.X, center.Y + 13), 10, textMuted, inner * 1.5);
+        }
+
+        dc.Pop();
+    }
+
+    private void DrawPage(DrawingContext dc, IReadOnlyList<RadialMenuItem> items, int hover, double opacity,
+        Point center, double inner, double outer, double rotation,
+        Color accent, Color panel, Color divider, Color textPrimary, Color textMuted)
+    {
+        if (items.Count == 0 || opacity <= 0.01) return;
+
+        dc.PushOpacity(opacity);
+        bool rotate = Math.Abs(rotation) > 0.01;
+        if (rotate) dc.PushTransform(new RotateTransform(rotation, center.X, center.Y));
+
+        int count = items.Count;
         double step = 360.0 / count;
         double gap = count > 1 ? Math.Min(2.6, step * 0.06) : 0;
 
@@ -88,7 +226,7 @@ public sealed class RadialMenuControl : FrameworkElement
         {
             double start = -90 + i * step + gap / 2;
             double end = start + step - gap;
-            bool hovered = i == _hover;
+            bool hovered = i == hover;
 
             var geometry = BuildSegment(center, inner, outer, start, end);
             Color fillColor = hovered
@@ -108,22 +246,15 @@ public sealed class RadialMenuControl : FrameworkElement
                 : Math.Max(70, 2 * radius * Math.Sin(step * Math.PI / 360.0) * 0.9);
 
             var brush = hovered ? Colors.White : textPrimary;
-            DrawCentered(dc, _items[i].Title, anchor, 13, brush, maxWidth, FontWeights.SemiBold, 2);
+            DrawCentered(dc, items[i].Title, anchor, 13, brush, maxWidth, FontWeights.SemiBold, 2);
 
-            if (!string.IsNullOrWhiteSpace(_items[i].Subtitle))
-                DrawCentered(dc, _items[i].Subtitle,
+            if (!string.IsNullOrWhiteSpace(items[i].Subtitle))
+                DrawCentered(dc, items[i].Subtitle,
                     new Point(anchor.X, anchor.Y + 24), 10,
                     hovered ? Colors.White : textMuted, maxWidth);
         }
 
-        // merkez disk
-        dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(0xF5, 0x10, 0x0E, 0x0C)),
-            new Pen(new SolidColorBrush(Color.FromArgb(0x55, divider.R, divider.G, divider.B)), 1),
-            center, inner - 8, inner - 8);
-        DrawCentered(dc, "VOXORA", new Point(center.X, center.Y - 10), 15, accent, inner * 1.4, FontWeights.SemiBold);
-        DrawCentered(dc, LocalizationService.T("Radial_CloseHint"), new Point(center.X, center.Y + 13), 10,
-            textMuted, inner * 1.5);
-
+        if (rotate) dc.Pop();
         dc.Pop();
     }
 
@@ -187,6 +318,14 @@ public sealed class RadialMenuControl : FrameworkElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (_transitionActive)
+        {
+            if (_hover == -1) return;
+            _hover = -1;
+            InvalidateVisual();
+            return;
+        }
+
         int index = HitTest(e.GetPosition(this));
         if (index == _hover) return;
 
@@ -224,6 +363,14 @@ public sealed class RadialMenuControl : FrameworkElement
         base.OnMouseRightButtonUp(e);
         e.Handled = true;
         Dismissed?.Invoke();
+    }
+
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        if (_pageCount <= 1) return;
+        PageRequested?.Invoke(e.Delta > 0 ? -1 : 1);
+        e.Handled = true;
     }
 
     private int HitTest(Point point)
